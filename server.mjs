@@ -45,8 +45,6 @@ const deviceRequestLogFile = path.join(dataDir, "attendance-device-requests.log"
 const port = Number(process.env.PORT || 3000);
 const attendancePort = Number(process.env.ATTENDANCE_PORT || process.env.PORT || 8081);
 const host = process.env.HOST || "0.0.0.0";
-const hostedPublishingDisabled =
-  process.env.RENDER === "true" || Boolean(process.env.RENDER_SERVICE_ID);
 const passwordResetRequests = new Map();
 
 const mimeTypes = {
@@ -1049,9 +1047,6 @@ async function serveStatic(response, pathname) {
 async function handleRequest(request, response) {
   try {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
-    if (hostedPublishingDisabled && url.pathname !== "/api/health") {
-      return text(response, 410, "This site has been unpublished.");
-    }
     await logDeviceRequest(request, url);
     if (url.pathname.startsWith("/iclock/")) {
       await handleAttendanceDevice(request, response, url);

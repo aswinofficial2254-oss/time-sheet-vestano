@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: vestano-timesheet-portal
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeployTrigger: commit
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_DIR
+        value: /tmp/vestano-timesheet-data
