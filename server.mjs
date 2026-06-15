@@ -36,12 +36,14 @@ async function loadEnvironmentFile() {
 await loadEnvironmentFile();
 
 const publicDir = path.join(root, "public");
-const dataDir = path.join(root, "data");
+const dataDir = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(root, "data");
 const dataFile = path.join(dataDir, "app-data.json");
 const sessionFile = path.join(dataDir, "sessions.json");
 const deviceRequestLogFile = path.join(dataDir, "attendance-device-requests.log");
 const port = Number(process.env.PORT || 3000);
-const attendancePort = Number(process.env.ATTENDANCE_PORT || 8081);
+const attendancePort = Number(process.env.ATTENDANCE_PORT || process.env.PORT || 8081);
 const host = process.env.HOST || "0.0.0.0";
 const passwordResetRequests = new Map();
 
@@ -525,6 +527,10 @@ async function handleAttendanceDevice(request, response, url) {
 
 async function handleApi(request, response, url) {
   const method = request.method;
+
+  if (method === "GET" && url.pathname === "/api/health") {
+    return json(response, 200, { ok: true });
+  }
 
   if (method === "POST" && url.pathname === "/api/login") {
     const body = await readBody(request);
