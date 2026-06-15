@@ -28,8 +28,11 @@ profile updates, and persistent data, deploy the repository as a Node web servic
 the included `render.yaml` Blueprint.
 
 On Render, the portal and eSSL ADMS receiver share the service's HTTPS port. Configure
-the attendance machine with the deployed hostname and HTTPS port `443`. Runtime data is
-stored on the mounted `/var/data` persistent disk.
+the attendance machine with the deployed hostname and HTTPS port `443`.
+
+The included Blueprint uses Render's free service and temporary storage. The portal may
+sleep when idle, and employee, timesheet, attendance, and session data can reset whenever
+the service restarts or redeploys. Use a persistent disk or database for production data.
 
 ## Email OTP configuration
 
