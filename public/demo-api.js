@@ -204,6 +204,9 @@ export async function demoApi(path, options = {}) {
   if (entryMatch && method === "PATCH") {
     const entry = data.entries.find((item) => item.id === entryMatch[1]);
     if (!entry) throw new Error("Timesheet entry not found.");
+    if (body.approvalStatus !== undefined && user.role !== "admin") {
+      throw new Error("Only admins can approve entries.");
+    }
     Object.assign(entry, body, { updatedAt: new Date().toISOString() });
     if (body.approvalStatus === undefined) {
       entry.totalHours = calculateHours(entry.startTime, entry.endTime, entry.breakHours);

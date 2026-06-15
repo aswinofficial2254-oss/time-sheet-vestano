@@ -949,10 +949,10 @@ async function handleApi(request, response, url) {
     const entry = data.entries.find((item) => item.id === entryMatch[1]);
     if (!entry) return json(response, 404, { error: "Timesheet entry not found." });
     const body = await readBody(request);
-    const isApprover = ["admin", "manager"].includes(user.role);
+    const isApprover = user.role === "admin";
 
     if (body.approvalStatus !== undefined) {
-      if (!isApprover) return json(response, 403, { error: "Only managers can approve entries." });
+      if (!isApprover) return json(response, 403, { error: "Only admins can approve entries." });
       if (!["Approved", "Rejected", "Submitted"].includes(body.approvalStatus)) {
         return json(response, 400, { error: "Invalid approval status." });
       }

@@ -1,4 +1,4 @@
-import { demoApi, useDemoApi } from "./demo-api.js?v=3";
+import { demoApi, useDemoApi } from "./demo-api.js?v=4";
 
 const state = {
   user: null,
@@ -87,6 +87,10 @@ function isManager() {
   return ["admin", "manager"].includes(state.user?.role);
 }
 
+function isAdmin() {
+  return state.user?.role === "admin";
+}
+
 function showApp() {
   loginView.classList.add("hidden");
   appView.classList.remove("hidden");
@@ -142,7 +146,7 @@ function renderSidebarAvatar() {
 }
 
 function navigate(page) {
-  if (page === "approvals" && !isManager()) page = "dashboard";
+  if (page === "approvals" && !isAdmin()) page = "dashboard";
   if (page === "attendance" && state.user.role !== "admin") page = "dashboard";
   if (page === "employees" && state.user.role !== "admin") page = "dashboard";
   if (page === "profile" && state.user.role !== "employee") page = "dashboard";
