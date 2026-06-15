@@ -112,6 +112,24 @@ button {
   font-size: 1.45rem;
 }
 
+.login-logo {
+  width: min(330px, 72%);
+  aspect-ratio: 1;
+  margin: -54px 0 8px -42px;
+  object-fit: cover;
+  border-radius: 28px;
+  filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.2));
+}
+
+.sidebar-logo {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+}
+
 .login-brand .eyebrow {
   color: #a8d8f5;
 }
@@ -1242,6 +1260,11 @@ dialog::backdrop {
 
   .brand-mark {
     margin-bottom: 28px;
+  }
+
+  .login-logo {
+    width: 210px;
+    margin: -28px 0 8px -24px;
   }
 
   .login-brand h1 {
