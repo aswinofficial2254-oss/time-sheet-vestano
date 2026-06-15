@@ -1,3 +1,5 @@
+import { demoApi, useDemoApi } from "./demo-api.js";
+
 const state = {
   user: null,
   settings: null,
@@ -47,6 +49,7 @@ function showToast(message, type = "success") {
 }
 
 async function api(path, options = {}) {
+  if (useDemoApi()) return demoApi(path, options);
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
