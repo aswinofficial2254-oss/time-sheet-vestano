@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#15375b" />
+    <title>Vestano International Pvt Ltd | Timesheet Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="toast" class="toast" role="status"></div>
+
+    <main id="loginView" class="login-shell">
+      <section class="login-brand">
+        <div class="brand-mark">W</div>
+        <p class="eyebrow">CORPORATE OPERATIONS</p>
+        <h1>Make every workday count.</h1>
+        <p class="login-copy">
+          One place for your team to record daily work, review hours, and keep approvals moving.
+        </p>
+        <div class="brand-points">
+          <span>Daily activity tracking</span>
+          <span>Manager approvals</span>
+          <span>Team-wide reporting</span>
+        </div>
+      </section>
+
+      <section class="login-panel">
+        <form id="loginForm" class="login-card">
+          <div>
+            <p class="eyebrow">WELCOME BACK</p>
+            <h2>Sign in to Vestano</h2>
+            <p>Use your employee ID or company email.</p>
+          </div>
+          <label>
+            Employee ID or email
+            <input name="identity" autocomplete="username" placeholder="EMP001" required />
+          </label>
+          <label>
+            Password or PIN
+            <span class="password-field">
+              <input
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Enter your password"
+                required
+              />
+              <button type="button" class="password-toggle" aria-label="Show password">Show</button>
+            </span>
+          </label>
+          <button class="button primary wide" type="submit">Sign in</button>
+          <div class="demo-access">
+            <strong>Demo access</strong>
+            <span>Employee: EMP001 / 1234</span>
+            <span>Admin: ADMIN001 / Admin@123</span>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <div id="appView" class="app-shell hidden">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-mark small">W</div>
+          <div>
+            <strong id="companyName">Vestano International Pvt Ltd</strong>
+            <span>Timesheet Portal</span>
+          </div>
+        </div>
+
+        <nav id="mainNav" class="main-nav">
+          <button data-page="dashboard" class="active">
+            <span class="nav-icon">⌂</span> Overview
+          </button>
+          <button data-page="timesheet">
+            <span class="nav-icon">▤</span> My Timesheet
+          </button>
+          <button data-page="profile" data-role="employee">
+            <span class="nav-icon">◉</span> My Profile
+          </button>
+          <button data-page="attendance" data-role="admin">
+            <span class="nav-icon">◷</span> Attendance
+          </button>
+          <button data-page="approvals" data-role="manager">
+            <span class="nav-icon">✓</span> Approvals
+          </button>
+          <button data-page="employees" data-role="admin">
+            <span class="nav-icon">◎</span> Employees
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="user-mini">
+            <div id="userInitials" class="avatar">DE</div>
+            <div>
+              <strong id="sidebarUser">Demo Employee</strong>
+              <span id="sidebarRole">Employee</span>
+            </div>
+          </div>
+          <button id="logoutButton" class="logout-button">Sign out</button>
+        </div>
+      </aside>
+
+      <div class="content-shell">
+        <header class="topbar">
+          <button id="menuButton" class="menu-button" aria-label="Open navigation">☰</button>
+          <div>
+            <p id="todayLabel" class="topbar-date"></p>
+            <h2 id="pageTitle">Overview</h2>
+          </div>
+          <button id="quickAddButton" class="button primary">+ Add work entry</button>
+        </header>
+
+        <main class="page-content">
+          <section id="dashboardPage" class="page active">
+            <div class="welcome-panel">
+              <div>
+                <p class="eyebrow">YOUR WORKSPACE</p>
+                <h1 id="welcomeTitle">Good morning</h1>
+                <p>Here is a clear view of this month’s work and what needs attention.</p>
+              </div>
+              <div class="today-card">
+                <span>Today</span>
+                <strong id="todayDate"></strong>
+              </div>
+            </div>
+
+            <div id="statsGrid" class="stats-grid"></div>
+
+            <div class="dashboard-grid">
+              <section class="card">
+                <div class="card-heading">
+                  <div>
+                    <p class="eyebrow">RECENT ACTIVITY</p>
+                    <h3>Latest work entries</h3>
+                  </div>
+                  <button class="text-button" data-go="timesheet">View all</button>
+                </div>
+                <div id="recentEntries" class="activity-list empty-state">No work entries yet.</div>
+              </section>
+
+              <section class="card focus-card">
+                <p class="eyebrow">THIS WEEK</p>
+                <h3>Keep your record current</h3>
+                <p>Daily entries make approvals faster and give your team an accurate picture.</p>
+                <button class="button light" data-go="timesheet">Open my timesheet</button>
+              </section>
+            </div>
+
+            <section id="employeeAttendanceCard" class="card employee-attendance-card hidden">
+              <div class="card-heading">
+                <div>
+                  <p class="eyebrow">MY ATTENDANCE</p>
+                  <h3>Recent attendance</h3>
+                </div>
+                <span id="todayAttendanceStatus" class="badge">No punch today</span>
+              </div>
+              <div id="employeeAttendanceSummary" class="attendance-summary-grid"></div>
+              <div class="table-wrap compact-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Check in</th>
+                      <th>Check out</th>
+                      <th>Break</th>
+                      <th>Break count</th>
+                      <th>Net hours</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="employeeAttendanceRows"></tbody>
+                </table>
+              </div>
+              <div id="employeeAttendanceEmpty" class="empty-state hidden">
+                No attendance records linked to your employee account.
+              </div>
+            </section>
+          </section>
+
+          <section id="timesheetPage" class="page">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">DAILY WORK LOG</p>
+                <h1>My Timesheet</h1>
+                <p>Add work details, track hours, and follow approval status.</p>
+              </div>
+              <button id="addEntryButton" class="button primary">+ New entry</button>
+            </div>
+
+            <div class="card filter-card">
+              <label>
+                From
+                <input id="filterFrom" type="date" />
+              </label>
+              <label>
+                To
+                <input id="filterTo" type="date" />
+              </label>
+              <label>
+                Approval
+                <select id="filterStatus">
+                  <option value="">All statuses</option>
+                  <option>Submitted</option>
+                  <option>Approved</option>
+                  <option>Rejected</option>
+                </select>
+              </label>
+              <button id="applyFilters" class="button secondary">Apply filters</button>
+            </div>
+
+            <div class="card table-card">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Project & work details</th>
+                      <th>Time</th>
+                      <th>Hours</th>
+                      <th>Work status</th>
+                      <th>Approval</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="timesheetRows"></tbody>
+                </table>
+              </div>
+              <div id="timesheetEmpty" class="empty-state hidden">No entries match this view.</div>
+            </div>
+          </section>
+
+          <section id="profilePage" class="page">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">PERSONAL ACCOUNT</p>
+                <h1>My Profile</h1>
+                <p>Manage your profile image and reset your password securely by email OTP.</p>
+              </div>
+            </div>
+            <form id="profileForm" class="profile-layout">
+              <section class="card profile-photo-card">
+                <div id="profileImagePreview" class="profile-image-preview">DE</div>
+                <h3 id="profileDisplayName">Employee Name</h3>
+                <p id="profileDisplayId">EMP001</p>
+                <label class="button secondary upload-button">
+                  Upload image
+                  <input id="profileImageInput" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+                </label>
+                <button id="removeProfileImage" class="button ghost" type="button">Remove image</button>
+                <small>JPG, PNG, or WebP. The image will be resized automatically.</small>
+              </section>
+              <section class="card profile-details-card">
+                <div class="profile-readonly-grid">
+                  <div><span>Employee ID</span><strong id="profileEmployeeId">—</strong></div>
+                  <div><span>Role</span><strong id="profileRole">—</strong></div>
+                  <div><span>Email</span><strong id="profileEmail">—</strong></div>
+                  <div><span>Department</span><strong id="profileDepartment">—</strong></div>
+                  <div><span>Manager</span><strong id="profileManager">—</strong></div>
+                </div>
+                <div class="modal-actions">
+                  <button id="requestPasswordOtp" class="button secondary" type="button">
+                    Reset password by email OTP
+                  </button>
+                  <button class="button primary" type="submit">Save profile image</button>
+                </div>
+              </section>
+            </form>
+          </section>
+
+          <section id="approvalsPage" class="page">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">MANAGER WORKSPACE</p>
+                <h1>Timesheet Approvals</h1>
+                <p>Review submitted work and resolve exceptions quickly.</p>
+              </div>
+            </div>
+            <div id="approvalList" class="approval-grid"></div>
+            <div id="approvalEmpty" class="card empty-state hidden">No entries are waiting for review.</div>
+          </section>
+
+          <section id="attendancePage" class="page">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">ESSL PUNCH RECORDS</p>
+                <h1>Attendance</h1>
+                <p>View daily first punch, last punch, and attendance hours from the biometric device.</p>
+              </div>
+              <span id="attendanceSyncBadge" class="badge">Waiting for device</span>
+            </div>
+
+            <div id="deviceSetupCard" class="card device-setup hidden">
+              <div>
+                <p class="eyebrow">ADMIN DEVICE SETUP</p>
+                <h3>eSSL network push settings</h3>
+                <p>
+                  Configure the machine for ADMS / cloud server mode. The machine user code must
+                  match the employee’s website Employee ID.
+                </p>
+              </div>
+              <div class="setup-grid">
+                <div><span>Server IP / host</span><strong id="deviceServerHost">—</strong></div>
+                <div><span>Port</span><strong id="deviceServerPort">8081</strong></div>
+                <div><span>Protocol</span><strong id="deviceProtocol">ADMS / iClock push</strong></div>
+                <div><span>Connected devices</span><strong id="connectedDeviceCount">0</strong></div>
+                <div><span>Machine</span><strong id="configuredDeviceModel">—</strong></div>
+                <div><span>Serial number</span><strong id="configuredDeviceSerial">—</strong></div>
+                <div><span>Machine IP</span><strong id="configuredDeviceIp">—</strong></div>
+                <div><span>Connection</span><strong id="configuredDeviceConnection">—</strong></div>
+              </div>
+            </div>
+
+            <div id="attendanceMappingCard" class="card attendance-mapping hidden">
+              <div>
+                <p class="eyebrow">EMPLOYEE ATTENDANCE LINK</p>
+                <h3>Link machine code to employee</h3>
+                <p>Choose a punch-machine user code and assign it to the correct employee.</p>
+              </div>
+              <div class="mapping-controls">
+              <label>
+                Machine punch code
+                <select id="unmatchedPunchCode"></select>
+              </label>
+              <label>
+                Employee name
+                <select id="attendanceEmployee"></select>
+              </label>
+              <button id="saveAttendanceMapping" class="button primary">Link employee</button>
+              </div>
+            </div>
+
+            <div class="card filter-card">
+              <label>
+                From
+                <input id="attendanceFrom" type="date" />
+              </label>
+              <label>
+                To
+                <input id="attendanceTo" type="date" />
+              </label>
+              <label>
+                Filter by employee
+                <select id="attendanceEmployeeFilter">
+                  <option value="">All employees</option>
+                </select>
+              </label>
+              <button id="applyAttendanceFilters" class="button secondary">Apply filters</button>
+            </div>
+
+            <div class="card table-card">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th data-attendance-admin>Employee</th>
+                      <th>Check in</th>
+                      <th>Check out</th>
+                      <th>Break time</th>
+                      <th>Break count</th>
+                      <th>Net working hours</th>
+                      <th>Employee status</th>
+                      <th>Punch count</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attendanceRows"></tbody>
+                </table>
+              </div>
+              <div id="attendanceEmpty" class="empty-state hidden">
+                No attendance punches received for this period.
+              </div>
+            </div>
+          </section>
+
+          <section id="employeesPage" class="page">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">ADMINISTRATION</p>
+                <h1>Employees</h1>
+                <p>Create accounts and manage access for the whole company.</p>
+              </div>
+              <button id="addEmployeeButton" class="button primary">+ Add employee</button>
+            </div>
+            <div class="card table-card">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>ID</th>
+                      <th>Department</th>
+                      <th>Manager</th>
+                      <th>Role</th>
+                      <th>Access</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="employeeRows"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <dialog id="entryDialog">
+      <form id="entryForm" class="modal-form">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">WORK DETAILS</p>
+            <h2 id="entryDialogTitle">New work entry</h2>
+          </div>
+          <button type="button" class="icon-button" data-close="entryDialog">×</button>
+        </div>
+        <input name="id" type="hidden" />
+        <div class="form-grid">
+          <label>
+            Date *
+            <input name="date" type="date" required />
+          </label>
+          <label>
+            Category *
+            <select name="category" required>
+              <option>Project Work</option>
+              <option>Meeting</option>
+              <option>Administration</option>
+              <option>Training</option>
+              <option>Client Support</option>
+              <option>Research</option>
+              <option>Leave</option>
+            </select>
+          </label>
+          <label class="span-2">
+            Project / client *
+            <input name="project" placeholder="Project or client name" required />
+          </label>
+          <label class="span-2">
+            Work details *
+            <textarea
+              name="details"
+              rows="4"
+              placeholder="What did you work on? Include the result or deliverable."
+              required
+            ></textarea>
+          </label>
+          <label>
+            Start time *
+            <input name="startTime" type="time" required />
+          </label>
+          <label>
+            End time *
+            <input name="endTime" type="time" required />
+          </label>
+          <label>
+            Break hours
+            <input name="breakHours" type="number" min="0" max="8" step="0.25" value="0" />
+          </label>
+          <label>
+            Work status
+            <select name="workStatus">
+              <option>Completed</option>
+              <option>In Progress</option>
+              <option>Blocked</option>
+            </select>
+          </label>
+          <label class="checkbox-label span-2">
+            <input name="billable" type="checkbox" />
+            This work is billable
+          </label>
+          <label class="span-2">
+            Comments / deliverables
+            <textarea name="comments" rows="2" placeholder="Optional notes or links"></textarea>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="button ghost" data-close="entryDialog">Cancel</button>
+          <button class="button primary" type="submit">Save and submit</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="employeeDialog">
+      <form id="employeeForm" class="modal-form">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">NEW ACCOUNT</p>
+            <h2>Add an employee</h2>
+          </div>
+          <button type="button" class="icon-button" data-close="employeeDialog">×</button>
+        </div>
+        <div class="form-grid">
+          <label>
+            Employee ID *
+            <input name="employeeId" placeholder="EMP002" required />
+          </label>
+          <label>
+            Full name *
+            <input name="name" placeholder="Employee name" required />
+          </label>
+          <label class="span-2">
+            Company email *
+            <input name="email" type="email" placeholder="name@company.com" required />
+          </label>
+          <label>
+            Department
+            <select name="department">
+              <option>Finance</option>
+              <option>Human Resources</option>
+              <option>Information Technology</option>
+              <option>Operations</option>
+              <option>Sales</option>
+              <option>Marketing</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label>
+            Role
+            <select name="role">
+              <option value="employee">Employee</option>
+              <option value="manager">Manager</option>
+            </select>
+          </label>
+          <label>
+            Manager
+            <input name="manager" placeholder="Manager name" />
+          </label>
+          <label>
+            Temporary password / PIN *
+            <span class="password-field">
+              <input name="password" type="password" minlength="4" required />
+              <button type="button" class="password-toggle" aria-label="Show password">Show</button>
+            </span>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="button ghost" data-close="employeeDialog">Cancel</button>
+          <button class="button primary" type="submit">Create employee</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="editEmployeeDialog">
+      <form id="editEmployeeForm" class="modal-form">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">EMPLOYEE PROFILE</p>
+            <h2>Edit employee</h2>
+          </div>
+          <button type="button" class="icon-button" data-close="editEmployeeDialog">×</button>
+        </div>
+        <input name="id" type="hidden" />
+        <div class="form-grid">
+          <label>
+            Employee ID *
+            <input name="employeeId" required />
+          </label>
+          <label>
+            Full name *
+            <input name="name" required />
+          </label>
+          <label class="span-2">
+            Company email *
+            <input name="email" type="email" required />
+          </label>
+          <label>
+            Department
+            <select name="department">
+              <option>Finance</option>
+              <option>Human Resources</option>
+              <option>Information Technology</option>
+              <option>Operations</option>
+              <option>Sales</option>
+              <option>Marketing</option>
+              <option>Administration</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label>
+            Role
+            <select name="role">
+              <option value="employee">Employee</option>
+              <option value="manager">Manager</option>
+            </select>
+          </label>
+          <label>
+            Manager
+            <input name="manager" />
+          </label>
+          <label>
+            New password / PIN
+            <span class="password-field">
+              <input name="password" type="password" minlength="4" placeholder="Leave blank to keep current" />
+              <button type="button" class="password-toggle" aria-label="Show password">Show</button>
+            </span>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="button ghost" data-close="editEmployeeDialog">Cancel</button>
+          <button class="button primary" type="submit">Save changes</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="approvalDialog">
+      <form id="approvalForm" class="modal-form compact">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">MANAGER DECISION</p>
+            <h2>Review entry</h2>
+          </div>
+          <button type="button" class="icon-button" data-close="approvalDialog">×</button>
+        </div>
+        <input name="id" type="hidden" />
+        <div id="approvalDetails" class="review-details"></div>
+        <label>
+          Comment
+          <textarea name="approvalComment" rows="3" placeholder="Optional feedback"></textarea>
+        </label>
+        <div class="modal-actions split">
+          <button class="button danger" type="submit" value="Rejected">Reject</button>
+          <button class="button success" type="submit" value="Approved">Approve</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="passwordResetDialog">
+      <form id="passwordResetForm" class="modal-form compact">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">EMAIL VERIFICATION</p>
+            <h2>Reset password</h2>
+          </div>
+          <button type="button" class="icon-button" data-close="passwordResetDialog">×</button>
+        </div>
+        <p id="passwordResetMessage" class="form-note">
+          Enter the six-digit OTP sent to your registered email.
+        </p>
+        <label>
+          Email OTP
+          <input name="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required />
+        </label>
+        <label>
+          New password / PIN
+          <span class="password-field">
+            <input name="password" type="password" minlength="4" required />
+            <button type="button" class="password-toggle" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <label>
+          Confirm password / PIN
+          <span class="password-field">
+            <input name="confirmPassword" type="password" minlength="4" required />
+            <button type="button" class="password-toggle" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="button ghost" data-close="passwordResetDialog">Cancel</button>
+          <button class="button primary" type="submit">Verify OTP and reset</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

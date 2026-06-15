@@ -1,0 +1,10 @@
+node_modules/
+.env
+data/app-data.json
+data/sessions.json
+data/attendance-device-requests.log
+outputs/
+build_timesheet.mjs
+capture-*.txt
+k90-capture.*
+server*.log
