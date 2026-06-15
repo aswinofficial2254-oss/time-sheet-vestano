@@ -1,4 +1,4 @@
-import { demoApi, useDemoApi } from "./demo-api.js";
+import { demoApi, useDemoApi } from "./demo-api.js?v=3";
 
 const state = {
   user: null,
