@@ -219,6 +219,12 @@
             </div>
 
             <div class="card table-card">
+              <div class="table-title">
+                <div>
+                  <p class="eyebrow">DAILY SUMMARY</p>
+                  <h3>Attendance by employee</h3>
+                </div>
+              </div>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -391,6 +397,33 @@
               </div>
               <div id="attendanceEmpty" class="empty-state hidden">
                 No attendance punches received for this period.
+              </div>
+            </div>
+
+            <div class="card table-card">
+              <div class="table-title">
+                <div>
+                  <p class="eyebrow">FULL PUNCH LOG</p>
+                  <h3>All punch records</h3>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th data-attendance-admin>Employee</th>
+                      <th>Machine code</th>
+                      <th>Status</th>
+                      <th>Verify mode</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attendanceRawRows"></tbody>
+                </table>
+              </div>
+              <div id="attendanceRawEmpty" class="empty-state hidden">
+                No raw punch records received for this period.
               </div>
             </div>
           </section>
@@ -684,6 +717,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./app.js?v=8"></script>
+    <script type="module" src="./app.js?v=9"></script>
   </body>
 </html>
