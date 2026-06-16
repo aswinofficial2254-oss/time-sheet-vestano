@@ -386,6 +386,7 @@ function entryQuery() {
 async function loadEntries() {
   const payload = await api(`/api/entries${entryQuery()}`);
   state.entries = payload.entries;
+  $("#timesheetActionHeader").textContent = isManager() ? "Actions" : "Admin note";
   $("#timesheetEmpty").classList.toggle("hidden", state.entries.length > 0);
   $("#timesheetRows").innerHTML = state.entries
     .map((entry) => {
