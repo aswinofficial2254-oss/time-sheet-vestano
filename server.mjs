@@ -45,6 +45,11 @@ const deviceRequestLogFile = path.join(dataDir, "attendance-device-requests.log"
 const port = Number(process.env.PORT || 3000);
 const attendancePort = Number(process.env.ATTENDANCE_PORT || process.env.PORT || 8081);
 const host = process.env.HOST || "0.0.0.0";
+const liveAttendanceForwardUrl =
+  process.env.LIVE_ATTENDANCE_FORWARD_URL ||
+  "https://lorrfeyiqgdfxdjqnpmn.supabase.co/functions/v1/iclock/iclock/cdata";
+const liveAttendanceForwardEnabled =
+  process.env.LIVE_ATTENDANCE_FORWARD !== "false";
 const passwordResetRequests = new Map();
 
 const mimeTypes = {
@@ -482,6 +487,31 @@ function addPunch({ serialNumber, punchCode, timestamp, status = "", verifyMode 
   return true;
 }
 
+async function forwardAttendanceToLive({ serialNumber, table, rawBody }) {
+  if (!liveAttendanceForwardEnabled || !rawBody.trim() || !serialNumber) return;
+  const endpoint = new URL(liveAttendanceForwardUrl);
+  endpoint.searchParams.set("SN", serialNumber);
+  endpoint.searchParams.set("table", table || "ATTLOG");
+  endpoint.searchParams.set("Stamp", "local-forward");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      body: rawBody,
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      console.error(`Live attendance forward failed: ${response.status} ${await response.text()}`);
+    }
+  } catch (error) {
+    console.error("Live attendance forward failed:", error.message);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function handleAttendanceDevice(request, response, url) {
   const serialNumber = String(url.searchParams.get("SN") || url.searchParams.get("sn") || "").trim();
   const devicePath = url.pathname.replace(/\.aspx$/i, "");
@@ -508,6 +538,9 @@ async function handleAttendanceDevice(request, response, url) {
     }
     data.settings.attendanceLastSync = new Date().toISOString();
     await saveData();
+    if (!table || table === "ATTLOG") {
+      await forwardAttendanceToLive({ serialNumber, table: table || "ATTLOG", rawBody });
+    }
     return text(response, 200, `OK: ${added}`);
   }
 
