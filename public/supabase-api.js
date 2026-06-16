@@ -322,7 +322,6 @@ export async function supabaseApi(path, options = {}) {
     if (url.searchParams.get("to")) query = query.lte("punched_at", `${url.searchParams.get("to")}T23:59:59+05:30`);
     const { data: records, error } = await query;
     throwIfError(error);
-    const mappedRecords = user.role === "admin" ? records.filter((record) => record.user_id) : records;
 
     let devices = [];
     let punchCodes = [];
@@ -345,7 +344,7 @@ export async function supabaseApi(path, options = {}) {
     }
     const settings = await getSettings();
     return {
-      records: mappedRecords.map(mapAttendance),
+      records: records.map(mapAttendance),
       devices,
       lastSync: settings.attendanceLastSync,
       punchCodes,
