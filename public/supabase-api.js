@@ -317,7 +317,8 @@ export async function supabaseApi(path, options = {}) {
 
   if (url.pathname === "/api/attendance") {
     let query = client.from("attendance_records").select("*").order("punched_at", { ascending: false });
-    if (url.searchParams.get("userId")) query = query.eq("user_id", url.searchParams.get("userId"));
+    if (user.role === "admin" && url.searchParams.get("userId")) query = query.eq("user_id", url.searchParams.get("userId"));
+    if (user.role !== "admin") query = query.eq("user_id", user.id);
     if (url.searchParams.get("from")) query = query.gte("punched_at", `${url.searchParams.get("from")}T00:00:00+05:30`);
     if (url.searchParams.get("to")) query = query.lte("punched_at", `${url.searchParams.get("to")}T23:59:59+05:30`);
     const { data: records, error } = await query;

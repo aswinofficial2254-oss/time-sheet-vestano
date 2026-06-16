@@ -87,7 +87,7 @@
           <button data-page="profile" data-role="employee">
             <span class="nav-icon">◉</span> My Profile
           </button>
-          <button data-page="attendance" data-role="admin">
+          <button data-page="attendance">
             <span class="nav-icon">◷</span> Attendance
           </button>
           <button data-page="approvals" data-role="admin">
@@ -348,7 +348,7 @@
                 To
                 <input id="attendanceTo" type="date" />
               </label>
-              <label>
+              <label data-attendance-admin>
                 Filter by employee
                 <select id="attendanceEmployeeFilter">
                   <option value="">All employees</option>
@@ -684,6 +684,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./app.js?v=8"></script>
+    <script type="module" src="./app.js?v=10"></script>
   </body>
 </html>

@@ -147,7 +147,6 @@ function renderSidebarAvatar() {
 
 function navigate(page) {
   if (page === "approvals" && !isAdmin()) page = "dashboard";
-  if (page === "attendance" && state.user.role !== "admin") page = "dashboard";
   if (page === "employees" && state.user.role !== "admin") page = "dashboard";
   if (page === "profile" && state.user.role !== "employee") page = "dashboard";
   state.page = page;
