@@ -673,6 +673,27 @@ textarea {
   margin-top: 24px;
 }
 
+.employee-hours-warning {
+  display: grid;
+  gap: 5px;
+  margin: 14px 0 18px;
+  padding: 12px 14px;
+  border-left: 4px solid var(--orange);
+  border-radius: 10px;
+  color: #7a4210;
+  background: #fff3e7;
+}
+
+.employee-hours-warning strong {
+  color: #8a3f00;
+  font-size: 0.86rem;
+}
+
+.employee-hours-warning span {
+  font-size: 0.79rem;
+  line-height: 1.5;
+}
+
 .attendance-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -945,6 +966,52 @@ tbody tr:hover {
 .approval-card .button {
   width: 100%;
   margin-top: 16px;
+}
+
+.approval-cell {
+  min-width: 230px;
+}
+
+.entry-actions-cell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.approval-status-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.approval-note {
+  max-width: 320px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--blue);
+  border-radius: 8px;
+  color: var(--muted);
+  background: #f5f8fa;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.approval-note strong {
+  color: var(--navy);
+}
+
+.row-actions.note-only {
+  justify-content: flex-end;
+}
+
+.locked-note {
+  color: var(--green);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.live-duration {
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
 }
 
 .device-setup {
