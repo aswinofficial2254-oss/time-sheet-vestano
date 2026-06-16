@@ -640,6 +640,10 @@ function buildAttendanceDays(records) {
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
+function buildAttendancePunchRows(records) {
+  return [...records].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
 function csvCell(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
@@ -749,6 +753,20 @@ async function loadAttendance() {
           <td><strong>${day.punches.length}</strong><br><small>${escapeHtml(punchList)}</small></td>
         </tr>`;
     })
+    .join("");
+
+  const punchRows = buildAttendancePunchRows(records);
+  $("#attendancePunchEmpty").classList.toggle("hidden", punchRows.length > 0);
+  $("#attendancePunchRows").innerHTML = punchRows
+    .map((record) => `
+      <tr>
+        <td><strong>${formatDate(attendanceDateFromTimestamp(record.timestamp))}</strong></td>
+        <td>${timeFromTimestamp(record.timestamp)}</td>
+        ${adminView ? `<td class="employee-cell"><strong>${escapeHtml(record.employeeName || `Unmatched code ${record.punchCode}`)}</strong><span>${escapeHtml(record.employeeId || record.punchCode)}${record.userId ? "" : " · Needs mapping"}</span></td>` : ""}
+        <td>${escapeHtml(record.punchCode)}</td>
+        <td>${escapeHtml(record.status || "0")}</td>
+        <td>${escapeHtml(record.verifyMode || "1")}</td>
+      </tr>`)
     .join("");
 
   $("#attendanceSyncBadge").textContent = lastSync
