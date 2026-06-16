@@ -214,6 +214,8 @@ export async function supabaseApi(path, options = {}) {
 
   const user = await currentProfile();
   if (!user) throw new Error("Please sign in.");
+  const hasAdminAccess = ["super_admin", "admin"].includes(user.role);
+  const isSuperAdmin = user.role === "super_admin";
 
   if (url.pathname === "/api/dashboard") {
     const { data, error } = await client.rpc("get_dashboard_totals");
@@ -317,8 +319,8 @@ export async function supabaseApi(path, options = {}) {
 
   if (url.pathname === "/api/attendance") {
     let query = client.from("attendance_records").select("*").order("punched_at", { ascending: false });
-    if (user.role === "admin" && url.searchParams.get("userId")) query = query.eq("user_id", url.searchParams.get("userId"));
-    if (user.role !== "admin") query = query.eq("user_id", user.id);
+    if (hasAdminAccess && url.searchParams.get("userId")) query = query.eq("user_id", url.searchParams.get("userId"));
+    if (!hasAdminAccess) query = query.eq("user_id", user.id);
     if (url.searchParams.get("from")) query = query.gte("punched_at", `${url.searchParams.get("from")}T00:00:00+05:30`);
     if (url.searchParams.get("to")) query = query.lte("punched_at", `${url.searchParams.get("to")}T23:59:59+05:30`);
     const { data: records, error } = await query;
@@ -326,14 +328,14 @@ export async function supabaseApi(path, options = {}) {
 
     let devices = [];
     let punchCodes = [];
-    if (user.role === "admin") {
+    if (hasAdminAccess) {
       const [{ data: deviceRows, error: deviceError }, { data: mappings, error: mappingError }] =
         await Promise.all([
           client.from("attendance_devices").select("*").order("last_seen", { ascending: false }),
           client.from("attendance_mappings").select("*"),
         ]);
       throwIfError(deviceError || mappingError);
-      devices = deviceRows;
+      devices = isSuperAdmin ? deviceRows : [];
       const profileResult = await client.from("profiles").select("id,name");
       throwIfError(profileResult.error);
       const names = new Map(profileResult.data.map((profile) => [profile.id, profile.name]));
@@ -353,6 +355,7 @@ export async function supabaseApi(path, options = {}) {
   }
 
   if (url.pathname === "/api/attendance/device-setup") {
+    if (!isSuperAdmin) throw new Error("Only the super admin can view device setup.");
     const settings = await getSettings();
     const endpoint = new URL("/functions/v1/iclock/iclock/cdata", SUPABASE_URL);
     return {
@@ -364,6 +367,7 @@ export async function supabaseApi(path, options = {}) {
   }
 
   if (url.pathname === "/api/attendance/mappings" && method === "POST") {
+    if (!isSuperAdmin) throw new Error("Only the super admin can map attendance codes.");
     const { data: matched, error } = await client.rpc("map_attendance_employee", {
       p_punch_code: body.punchCode,
       p_user_id: body.userId,

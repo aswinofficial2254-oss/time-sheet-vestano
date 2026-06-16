@@ -12,6 +12,15 @@ function response(status: number, payload: unknown) {
   });
 }
 
+function isAdminRole(role?: string) {
+  return role === "super_admin" || role === "admin";
+}
+
+function canSetRole(callerRole: string, role: string) {
+  if (callerRole === "super_admin") return ["employee", "manager", "admin"].includes(role);
+  return ["employee", "manager"].includes(role);
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -34,7 +43,7 @@ Deno.serve(async (request) => {
       .eq("id", user.id)
       .single();
 
-    if (!caller?.active || caller.role !== "admin") {
+    if (!caller?.active || !isAdminRole(caller.role)) {
       return response(403, { error: "Only admins can manage employees." });
     }
 
@@ -69,7 +78,7 @@ Deno.serve(async (request) => {
           email,
           department: String(body.department || "Other"),
           manager: String(body.manager || "").trim(),
-          role: ["employee", "manager"].includes(body.role) ? body.role : "employee",
+          role: canSetRole(caller.role, body.role) ? body.role : "employee",
           active: true,
         })
         .eq("id", data.user.id)
@@ -102,7 +111,22 @@ Deno.serve(async (request) => {
       ]) {
         if (body[source] !== undefined) updates[target] = body[source];
       }
-      if (body.role !== undefined && ["employee", "manager"].includes(body.role)) {
+      const { data: currentProfile } = await adminClient
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+      if (currentProfile && !isAdminRole(caller.role)) {
+        return response(403, { error: "Only admins can manage employees." });
+      }
+      if (currentProfile?.role === "super_admin") {
+        return response(403, { error: "The super admin account cannot be changed here." });
+      }
+      if (currentProfile?.role === "admin" && caller.role !== "super_admin") {
+        return response(403, { error: "Only the super admin can manage administrator accounts." });
+      }
+
+      if (body.role !== undefined && canSetRole(caller.role, body.role)) {
         updates.role = body.role;
       }
 
@@ -123,7 +147,11 @@ Deno.serve(async (request) => {
         .select("role, active")
         .eq("id", userId)
         .single();
-      if (profile?.role === "admin") return response(400, { error: "Admin accounts cannot be deleted." });
+      if (profile?.role === "super_admin") return response(400, { error: "The super admin account cannot be deleted." });
+      if (profile?.role === "admin" && caller.role !== "super_admin") {
+        return response(403, { error: "Only the super admin can delete administrator accounts." });
+      }
+      if (isAdminRole(profile?.role)) return response(400, { error: "Administrator accounts cannot be deleted." });
       if (profile?.active) return response(400, { error: "Deactivate the employee before deleting." });
 
       const { error } = await adminClient.auth.admin.deleteUser(userId);

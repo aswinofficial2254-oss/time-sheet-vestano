@@ -1,4 +1,4 @@
-import { supabaseApi, useSupabaseApi } from "./supabase-api.js?v=1";
+import { supabaseApi, useSupabaseApi } from "./supabase-api.js?v=2";
 
 const state = {
   user: null,

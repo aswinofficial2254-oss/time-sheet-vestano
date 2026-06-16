@@ -26,7 +26,7 @@ create table if not exists public.profiles (
   email citext not null unique,
   department text not null default 'Other',
   manager text not null default '',
-  role text not null default 'employee' check (role in ('admin', 'manager', 'employee')),
+  role text not null default 'employee' check (role in ('super_admin', 'admin', 'manager', 'employee')),
   active boolean not null default true,
   profile_image text not null default '',
   created_at timestamptz not null default now(),
@@ -135,7 +135,7 @@ begin
     new.email,
     coalesce(nullif(new.raw_user_meta_data ->> 'department', ''), 'Other'),
     coalesce(new.raw_user_meta_data ->> 'manager', ''),
-    case when first_account then 'admin' else 'employee' end
+    case when first_account then 'super_admin' else 'employee' end
   )
   on conflict (id) do nothing;
 
@@ -168,7 +168,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select coalesce(public.current_user_role() = 'admin', false);
+  select coalesce(public.current_user_role() in ('super_admin', 'admin'), false);
 $$;
 
 create or replace function public.is_manager_or_admin()
@@ -178,7 +178,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select coalesce(public.current_user_role() in ('admin', 'manager'), false);
+  select coalesce(public.current_user_role() in ('super_admin', 'admin', 'manager'), false);
 $$;
 
 create or replace function public.resolve_login_email(identity text)
@@ -363,7 +363,7 @@ declare
 begin
   select * into reviewer
   from public.profiles
-  where id = auth.uid() and active and role = 'admin';
+  where id = auth.uid() and active and role in ('super_admin', 'admin');
 
   if reviewer.id is null then
     raise exception 'Only admins can approve entries.';
@@ -440,7 +440,7 @@ begin
     'pending', count(*) filter (where approval_status = 'Submitted'),
     'employees', (
       select count(*) from public.profiles
-      where active and role <> 'admin'
+      where active and role not in ('super_admin', 'admin')
     )
   )
   into result
