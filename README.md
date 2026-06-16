@@ -4,7 +4,7 @@ Corporate employee timesheet and attendance portal for Vestano International Pvt
 
 ## Features
 
-- Employee work entries and manager approvals
+- Employee work entries and admin approvals
 - Admin employee management
 - eSSL K90 Pro attendance integration using ADMS/iClock push
 - Employee-specific attendance dashboard
@@ -21,21 +21,28 @@ Open `http://localhost:3000`.
 
 The eSSL receiver listens on TCP port `8081`.
 
-## Deploy the full portal
+## Local Node backend
 
-GitHub Pages only runs the browser demo. To run login, employees, approvals, attendance,
-profile updates, and persistent data, deploy the repository as a Node web service using
-the included `render.yaml` Blueprint.
+The local Node server remains available for development and direct LAN attendance-device
+testing. Copy `.env.example` to `.env` and provide SMTP credentials to enable its email OTP.
 
-On Render, the portal and eSSL ADMS receiver share the service's HTTPS port. Configure
-the attendance machine with the deployed hostname and HTTPS port `443`.
+Runtime data under `data/` is intentionally excluded from Git.
 
-The included Blueprint uses Render's free service and temporary storage. The portal may
-sleep when idle, and employee, timesheet, attendance, and session data can reset whenever
-the service restarts or redeploys. Use a persistent disk or database for production data.
+## Supabase backend
 
-## Email OTP configuration
+The GitHub Pages build uses Supabase Auth, Postgres, Row Level Security, and Edge Functions.
+Until `public/supabase-config.js` is filled, the page uses browser fallback storage so the UI
+can be tested. Fallback data is saved only on that device.
 
-Copy `.env.example` to `.env` and provide the company SMTP mailbox credentials.
+1. Create a Supabase project.
+2. Put its project URL and publishable/anon key in `public/supabase-config.js`.
+3. Link the Supabase CLI and apply `supabase/migrations`.
+4. Deploy the `admin-users` and `iclock` Edge Functions.
+5. Create the first user in Supabase Authentication with `employee_id` and `name` user metadata.
+   The first profile is assigned the admin role automatically.
+6. Disable public sign-ups after creating the first administrator.
 
-Runtime attendance, session, and employee data under `data/` is intentionally excluded from Git.
+For email password-reset codes, change the Supabase magic-link email template to include
+`{{ .Token }}`. The K90 endpoint is:
+
+`https://<project-ref>.supabase.co/functions/v1/iclock/iclock/cdata`

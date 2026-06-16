@@ -8,3 +8,4 @@ build_timesheet.mjs
 capture-*.txt
 k90-capture.*
 server*.log
+.supabase/

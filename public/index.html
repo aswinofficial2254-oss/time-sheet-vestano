@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#15375b" />
     <title>Vestano International Pvt Ltd | Timesheet Portal</title>
-    <link rel="stylesheet" href="./styles.css?v=4" />
+    <link rel="stylesheet" href="./styles.css?v=5" />
   </head>
   <body>
     <div id="toast" class="toast" role="status"></div>
@@ -24,7 +24,7 @@
         </p>
         <div class="brand-points">
           <span>Daily activity tracking</span>
-          <span>Manager approvals</span>
+          <span>Admin approvals</span>
           <span>Team-wide reporting</span>
         </div>
       </section>
@@ -55,9 +55,9 @@
           </label>
           <button class="button primary wide" type="submit">Sign in</button>
           <div class="demo-access">
-            <strong>Demo access</strong>
-            <span>Employee: EMP001 / 1234</span>
-            <span>Admin: ADMIN001 / Admin@123</span>
+            <strong>Company access</strong>
+            <span>Use your employee ID or registered email.</span>
+            <span>Default admin: ADMIN001 / Admin@123</span>
           </div>
         </form>
       </section>
@@ -280,7 +280,7 @@
           <section id="approvalsPage" class="page">
             <div class="section-heading">
               <div>
-                <p class="eyebrow">MANAGER WORKSPACE</p>
+                <p class="eyebrow">ADMIN WORKSPACE</p>
                 <h1>Timesheet Approvals</h1>
                 <p>Review submitted work and resolve exceptions quickly.</p>
               </div>
@@ -355,6 +355,19 @@
                 </select>
               </label>
               <button id="applyAttendanceFilters" class="button secondary">Apply filters</button>
+            </div>
+
+            <div class="card attendance-export-card">
+              <div>
+                <p class="eyebrow">ATTENDANCE EXPORT</p>
+                <h3>Download attendance report</h3>
+                <p id="attendanceExportSummary">
+                  Export the attendance records selected by the date and employee filters.
+                </p>
+              </div>
+              <button id="exportAttendanceCsv" class="button primary" type="button">
+                Download CSV
+              </button>
             </div>
 
             <div class="card table-card">
@@ -616,7 +629,7 @@
       <form id="approvalForm" class="modal-form compact">
         <div class="modal-heading">
           <div>
-            <p class="eyebrow">MANAGER DECISION</p>
+            <p class="eyebrow">ADMIN DECISION</p>
             <h2>Review entry</h2>
           </div>
           <button type="button" class="icon-button" data-close="approvalDialog">×</button>
@@ -671,6 +684,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./app.js?v=4"></script>
+    <script type="module" src="./app.js?v=5"></script>
   </body>
 </html>

@@ -1,0 +1,7 @@
+project_id = "time-sheet-vestano"
+
+[functions.admin-users]
+verify_jwt = true
+
+[functions.iclock]
+verify_jwt = false

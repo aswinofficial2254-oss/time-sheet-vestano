@@ -1017,6 +1017,33 @@ tbody tr:hover {
   font-size: 0.8rem;
 }
 
+.attendance-export-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+  border-left: 4px solid var(--green);
+}
+
+.attendance-export-card h3 {
+  margin: 0;
+  color: var(--navy);
+  font-family: Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+}
+
+.attendance-export-card p:not(.eyebrow) {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.attendance-export-card .button {
+  flex: 0 0 auto;
+}
+
 .profile-layout {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -1249,6 +1276,15 @@ dialog::backdrop {
 }
 
 @media (max-width: 780px) {
+  .attendance-export-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .attendance-export-card .button {
+    width: 100%;
+  }
+
   .login-shell {
     grid-template-columns: 1fr;
   }

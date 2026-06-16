@@ -1,4 +1,4 @@
-import { demoApi, useDemoApi } from "./demo-api.js?v=4";
+import { supabaseApi, useSupabaseApi } from "./supabase-api.js?v=1";
 
 const state = {
   user: null,
@@ -49,7 +49,7 @@ function showToast(message, type = "success") {
 }
 
 async function api(path, options = {}) {
-  if (useDemoApi()) return demoApi(path, options);
+  if (useSupabaseApi()) return supabaseApi(path, options);
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
@@ -466,6 +466,77 @@ function calculateAttendanceDay(punches) {
   };
 }
 
+function buildAttendanceDays(records) {
+  const grouped = new Map();
+  for (const record of records) {
+    const date = attendanceDateFromTimestamp(record.timestamp);
+    const key = `${record.userId || record.punchCode}|${date}`;
+    const group = grouped.get(key) || {
+      date,
+      employeeName: record.employeeName,
+      employeeId: record.employeeId || record.punchCode,
+      punches: [],
+      matched: Boolean(record.userId),
+    };
+    group.punches.push(record.timestamp);
+    grouped.set(key, group);
+  }
+
+  return [...grouped.values()]
+    .map((group) => ({ ...group, punches: group.punches.sort() }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function exportAttendanceCsv() {
+  const days = buildAttendanceDays(state.attendance);
+  if (!days.length) {
+    showToast("No attendance records are available to export.", "error");
+    return;
+  }
+
+  const headers = [
+    "Date",
+    "Employee",
+    "Employee ID",
+    "Check In",
+    "Check Out",
+    "Break Time",
+    "Break Count",
+    "Net Working Hours",
+    "Employee Status",
+    "Punch Count",
+  ];
+  const rows = days.map((day) => {
+    const totals = calculateAttendanceDay(day.punches);
+    return [
+      day.date,
+      day.employeeName,
+      day.employeeId,
+      timeFromTimestamp(day.punches[0]),
+      totals.isOpen ? "Open" : timeFromTimestamp(day.punches.at(-1)),
+      formatDuration(totals.breakHours),
+      totals.breakCount,
+      formatDuration(totals.workingHours),
+      totals.employeeStatus,
+      day.punches.length,
+    ];
+  });
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  const from = $("#attendanceFrom").value || "all";
+  const to = $("#attendanceTo").value || "today";
+  link.href = URL.createObjectURL(blob);
+  link.download = `vestano-attendance-${from}-to-${to}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showToast(`${days.length} attendance records exported.`);
+}
+
 async function loadAttendance() {
   if (!state.attendanceDefaultsSet) {
     setTwoMonthAttendanceRange();
@@ -497,30 +568,13 @@ async function loadAttendance() {
   const adminView = isManager();
   $$("[data-attendance-admin]").forEach((element) => element.classList.toggle("hidden", !adminView));
 
-  const grouped = new Map();
-  for (const record of records) {
-    const date = attendanceDateFromTimestamp(record.timestamp);
-    const key = `${record.userId || record.punchCode}|${date}`;
-    const group = grouped.get(key) || {
-      date,
-      employeeName: record.employeeName,
-      employeeId: record.employeeId || record.punchCode,
-      punches: [],
-      devices: new Set(),
-      matched: Boolean(record.userId),
-    };
-    group.punches.push(record.timestamp);
-    group.devices.add(record.serialNumber);
-    grouped.set(key, group);
-  }
-
-  const days = [...grouped.values()]
-    .map((group) => ({
-      ...group,
-      punches: group.punches.sort(),
-      deviceList: [...group.devices].join(", "),
-    }))
-    .sort((a, b) => b.date.localeCompare(a.date));
+  const days = buildAttendanceDays(records);
+  const selectedEmployee = $("#attendanceEmployeeFilter").selectedOptions[0]?.textContent;
+  $("#attendanceExportSummary").textContent =
+    `${days.length} daily record${days.length === 1 ? "" : "s"} for ` +
+    `${selectedEmployee || "all employees"}, from ${$("#attendanceFrom").value || "the beginning"} ` +
+    `to ${$("#attendanceTo").value || "today"}.`;
+  $("#exportAttendanceCsv").disabled = days.length === 0;
 
   $("#attendanceEmpty").classList.toggle("hidden", days.length > 0);
   $("#attendanceRows").innerHTML = days
@@ -834,6 +888,7 @@ document.addEventListener("click", async (event) => {
   if (target.id === "addEmployeeButton") employeeDialog.showModal();
   if (target.id === "applyFilters") loadEntries();
   if (target.id === "applyAttendanceFilters") loadAttendance();
+  if (target.id === "exportAttendanceCsv") exportAttendanceCsv();
   if (target.id === "removeProfileImage") {
     state.pendingProfileImage = "";
     renderProfileImage();
