@@ -9,3 +9,4 @@ capture-*.txt
 k90-capture.*
 server*.log
 .supabase/
+supabase/.temp/
