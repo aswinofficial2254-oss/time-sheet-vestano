@@ -485,21 +485,6 @@ function buildAttendanceDays(records) {
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
-function attendanceEmployeeLabel(record) {
-  if (record.userId) {
-    return {
-      name: record.employeeName || "Employee",
-      detail: record.employeeId || record.punchCode,
-      matched: true,
-    };
-  }
-  return {
-    name: `Unmatched code ${record.punchCode}`,
-    detail: `${record.punchCode} · Needs mapping`,
-    matched: false,
-  };
-}
-
 function csvCell(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
@@ -584,8 +569,7 @@ async function loadAttendance() {
   const days = buildAttendanceDays(records);
   const selectedEmployee = $("#attendanceEmployeeFilter").selectedOptions[0]?.textContent;
   $("#attendanceExportSummary").textContent =
-    `${days.length} daily record${days.length === 1 ? "" : "s"} and ` +
-    `${records.length} punch${records.length === 1 ? "" : "es"} for ` +
+    `${days.length} daily record${days.length === 1 ? "" : "s"} for ` +
     `${selectedEmployee || "all employees"}, from ${$("#attendanceFrom").value || "the beginning"} ` +
     `to ${$("#attendanceTo").value || "today"}.`;
   $("#exportAttendanceCsv").disabled = days.length === 0;
@@ -608,22 +592,6 @@ async function loadAttendance() {
           <td><strong>${formatDuration(totals.workingHours)}</strong></td>
           <td><span class="badge ${totals.isOpen ? "submitted" : "approved"}">${totals.employeeStatus}</span></td>
           <td><strong>${day.punches.length}</strong><br><small>${escapeHtml(punchList)}</small></td>
-        </tr>`;
-    })
-    .join("");
-  const rawRecords = [...records].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  $("#attendanceRawEmpty").classList.toggle("hidden", rawRecords.length > 0);
-  $("#attendanceRawRows").innerHTML = rawRecords
-    .map((record) => {
-      const employee = attendanceEmployeeLabel(record);
-      return `
-        <tr>
-          <td><strong>${formatDate(attendanceDateFromTimestamp(record.timestamp))}</strong></td>
-          <td>${timeFromTimestamp(record.timestamp)}</td>
-          ${adminView ? `<td class="employee-cell"><strong>${escapeHtml(employee.name)}</strong><span>${escapeHtml(employee.detail)}</span></td>` : ""}
-          <td><strong>${escapeHtml(record.punchCode)}</strong></td>
-          <td>${escapeHtml(record.status || "0")}</td>
-          <td>${escapeHtml(record.verifyMode || "1")}</td>
         </tr>`;
     })
     .join("");
