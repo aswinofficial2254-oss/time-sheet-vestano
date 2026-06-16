@@ -91,12 +91,26 @@ function badgeClass(value) {
   return String(value).toLowerCase().replaceAll(" ", "-");
 }
 
+function formatRoleLabel(role) {
+  return String(role || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function isSuperAdmin() {
+  return state.user?.role === "super_admin";
+}
+
+function hasAdminAccess() {
+  return ["super_admin", "admin"].includes(state.user?.role);
+}
+
 function isManager() {
-  return ["admin", "manager"].includes(state.user?.role);
+  return ["super_admin", "admin", "manager"].includes(state.user?.role);
 }
 
 function isAdmin() {
-  return state.user?.role === "admin";
+  return hasAdminAccess();
 }
 
 function showApp() {
@@ -104,7 +118,7 @@ function showApp() {
   appView.classList.remove("hidden");
   $("#companyName").textContent = state.settings.companyName;
   $("#sidebarUser").textContent = state.user.name;
-  $("#sidebarRole").textContent = state.user.role;
+  $("#sidebarRole").textContent = formatRoleLabel(state.user.role);
   $("#userInitials").textContent = initials(state.user.name);
   renderSidebarAvatar();
   $("#welcomeTitle").textContent = `Good ${getGreeting()}, ${state.user.name.split(" ")[0]}`;
@@ -125,7 +139,7 @@ function showApp() {
     element.classList.toggle(
       "hidden",
       role === "admin"
-        ? state.user.role !== "admin"
+        ? !hasAdminAccess()
         : role === "employee"
           ? state.user.role !== "employee"
           : !isManager(),
@@ -185,7 +199,7 @@ function startLiveRefresh(page) {
 
 function navigate(page) {
   if (page === "approvals" && !isAdmin()) page = "dashboard";
-  if (page === "employees" && state.user.role !== "admin") page = "dashboard";
+  if (page === "employees" && !hasAdminAccess()) page = "dashboard";
   if (page === "profile" && state.user.role !== "employee") page = "dashboard";
   state.page = page;
   $$(".page").forEach((element) => element.classList.toggle("active", element.id === `${page}Page`));
@@ -309,6 +323,20 @@ async function loadDashboard() {
   }
 }
 
+function syncRoleOptions(select, currentRole = "employee") {
+  [...select.options].forEach((option) => {
+    if (option.value === "admin") {
+      option.hidden = !isSuperAdmin();
+      option.disabled = !isSuperAdmin();
+    }
+  });
+  if (!isSuperAdmin() && currentRole === "admin") {
+    select.value = "employee";
+    return;
+  }
+  select.value = currentRole;
+}
+
 function groupAttendanceRecords(records) {
   const grouped = new Map();
   for (const record of records) {
@@ -386,11 +414,12 @@ function entryQuery() {
 async function loadEntries() {
   const payload = await api(`/api/entries${entryQuery()}`);
   state.entries = payload.entries;
-  $("#timesheetActionHeader").textContent = isManager() ? "Actions" : "Admin note";
+  $("#timesheetActionHeader").textContent = hasAdminAccess() ? "Actions" : "Admin note";
   $("#timesheetEmpty").classList.toggle("hidden", state.entries.length > 0);
   $("#timesheetRows").innerHTML = state.entries
     .map((entry) => {
       const editable = !isManager() && entry.approvalStatus !== "Approved";
+      const superAdminDelete = isSuperAdmin();
       return `
         <tr>
           <td><strong>${formatDate(entry.date, { year: undefined })}</strong></td>
@@ -408,11 +437,11 @@ async function loadEntries() {
             </div>
           </td>
           <td class="entry-actions-cell">
-            <div class="row-actions ${!editable && !isManager() && entry.approvalComment ? "note-only" : ""}">
+            <div class="row-actions ${!editable && !superAdminDelete && !isManager() && entry.approvalComment ? "note-only" : ""}">
               ${editable ? `<button class="mini-button" data-edit="${entry.id}">Edit</button>` : ""}
-              ${editable ? `<button class="mini-button danger-text" data-delete="${entry.id}">Delete</button>` : ""}
+              ${editable || superAdminDelete ? `<button class="mini-button danger-text" data-delete="${entry.id}">Delete</button>` : ""}
               ${
-                !isManager() && entry.approvalComment
+                !hasAdminAccess() && entry.approvalComment
                   ? `<div class="approval-note"><strong>Admin note:</strong> ${escapeHtml(entry.approvalComment)}</div>`
                   : ""
               }
@@ -664,14 +693,14 @@ async function loadAttendance() {
     setTodayAttendanceRange();
     state.attendanceDefaultsSet = true;
   }
-  if (state.user.role === "admin") {
+  if (hasAdminAccess()) {
     const payload = await api("/api/employees");
     state.employees = payload.employees;
     const currentEmployee = $("#attendanceEmployeeFilter").value;
     $("#attendanceEmployeeFilter").innerHTML = [
       '<option value="">All employees</option>',
       ...state.employees
-        .filter((employee) => employee.active && employee.role !== "admin")
+        .filter((employee) => employee.active && !["super_admin", "admin"].includes(employee.role))
         .map(
           (employee) =>
             `<option value="${employee.id}">${escapeHtml(employee.name)} (${employee.employeeId})</option>`,
@@ -725,7 +754,12 @@ async function loadAttendance() {
     : "Waiting for device";
   $("#attendanceSyncBadge").className = `badge ${lastSync ? "approved" : ""}`;
 
-  if (state.user.role === "admin") {
+  if (hasAdminAccess()) {
+    if (!isSuperAdmin()) {
+      $("#deviceSetupCard").classList.add("hidden");
+      $("#attendanceMappingCard").classList.add("hidden");
+      return;
+    }
     $("#deviceSetupCard").classList.remove("hidden");
     const setup = await api("/api/attendance/device-setup");
     $("#deviceServerHost").textContent = setup.serverHost.split(":")[0];
@@ -746,7 +780,7 @@ async function loadAttendance() {
       )
       .join("");
     $("#attendanceEmployee").innerHTML = state.employees
-      .filter((employee) => employee.active && employee.role !== "admin")
+      .filter((employee) => employee.active && !["super_admin", "admin"].includes(employee.role))
       .map(
         (employee) =>
           `<option value="${employee.id}">${escapeHtml(employee.name)} (${employee.employeeId})</option>`,
@@ -773,22 +807,26 @@ async function loadEmployees() {
           <td>${employee.employeeId}</td>
           <td>${escapeHtml(employee.department)}</td>
           <td>${escapeHtml(employee.manager || "—")}</td>
-          <td><span class="badge">${employee.role}</span></td>
+          <td><span class="badge">${formatRoleLabel(employee.role)}</span></td>
           <td>
             <button
               class="mini-button ${employee.active ? "danger-text" : ""}"
               data-access="${employee.id}"
               data-active="${employee.active}"
-              ${employee.role === "admin" ? "disabled" : ""}
+              ${["super_admin", "admin"].includes(employee.role) ? "disabled" : ""}
             >
               ${employee.active ? "Deactivate" : "Activate"}
             </button>
           </td>
           <td>
             <div class="row-actions">
-              <button class="mini-button" data-edit-employee="${employee.id}">Edit</button>
               ${
-                employee.role === "admin" || employee.active
+                !isSuperAdmin() && ["super_admin", "admin"].includes(employee.role)
+                  ? ""
+                  : `<button class="mini-button" data-edit-employee="${employee.id}">Edit</button>`
+              }
+              ${
+                ["super_admin", "admin"].includes(employee.role) || employee.active
                   ? ""
                   : `<button class="mini-button danger-text" data-delete-employee="${employee.id}" data-employee-name="${escapeHtml(employee.name)}">Delete</button>`
               }
@@ -835,9 +873,10 @@ function openEmployeeEdit(employee) {
   editEmployeeForm.elements.email.value = employee.email;
   editEmployeeForm.elements.department.value = employee.department || "Other";
   editEmployeeForm.elements.manager.value = employee.manager || "";
-  editEmployeeForm.elements.role.value = employee.role === "admin" ? "employee" : employee.role;
-  editEmployeeForm.elements.role.disabled = employee.role === "admin";
-  editEmployeeForm.elements.employeeId.disabled = employee.role === "admin";
+  syncRoleOptions(editEmployeeForm.elements.role, employee.role);
+  editEmployeeForm.elements.role.disabled =
+    employee.role === "super_admin" || (!isSuperAdmin() && employee.role === "admin");
+  editEmployeeForm.elements.employeeId.disabled = employee.role === "super_admin";
   editEmployeeDialog.showModal();
 }
 
@@ -1008,7 +1047,11 @@ document.addEventListener("click", async (event) => {
   if (target.id === "quickAddButton" || target.id === "addEntryButton") {
     openEntry();
   }
-  if (target.id === "addEmployeeButton") employeeDialog.showModal();
+  if (target.id === "addEmployeeButton") {
+    employeeForm.reset();
+    syncRoleOptions(employeeForm.elements.role, "employee");
+    employeeDialog.showModal();
+  }
   if (target.id === "applyFilters") loadEntries();
   if (target.id === "applyAttendanceFilters") loadAttendance();
   if (target.id === "exportAttendanceCsv") exportAttendanceCsv();

@@ -201,7 +201,7 @@ async function initialData() {
         email: "admin@company.com",
         department: "Administration",
         manager: "",
-        role: "admin",
+        role: "super_admin",
         active: true,
         profileImage: "",
         passwordHash: hashSecret("Admin@123"),
@@ -218,6 +218,19 @@ async function initialData() {
         active: true,
         profileImage: "",
         passwordHash: hashSecret("1234"),
+        createdAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        employeeId: "ADMIN002",
+        name: "Portal Administrator",
+        email: "portaladmin@company.com",
+        department: "Administration",
+        manager: "System Administrator",
+        role: "admin",
+        active: true,
+        profileImage: "",
+        passwordHash: hashSecret("ASWIN@123"),
         createdAt: now,
       },
     ],
@@ -246,6 +259,43 @@ data.attendanceDevices ??= [];
 data.attendanceMappings ??= {};
 data.settings.attendanceLastSync ??= "";
 data.settings.attendanceDeviceConfig ??= {};
+if (!data.users.some((user) => user.role === "super_admin")) {
+  const primaryAdmin =
+    data.users.find((user) => user.employeeId === "ADMIN001" && user.role === "admin") ||
+    data.users.find((user) => user.role === "admin");
+  if (primaryAdmin) {
+    primaryAdmin.role = "super_admin";
+    await saveData();
+  }
+}
+if (!data.users.some((user) => user.role === "admin")) {
+  data.users.push({
+    id: crypto.randomUUID(),
+    employeeId: "ADMIN002",
+    name: "Portal Administrator",
+    email: "portaladmin@company.com",
+    department: "Administration",
+    manager: "System Administrator",
+    role: "admin",
+    active: true,
+    profileImage: "",
+    passwordHash: hashSecret("Admin@123"),
+    createdAt: new Date().toISOString(),
+  });
+  await saveData();
+}
+
+function isSuperAdmin(user) {
+  return user?.role === "super_admin";
+}
+
+function isAdminUser(user) {
+  return ["super_admin", "admin"].includes(user?.role);
+}
+
+function hasManagerAccess(user) {
+  return ["super_admin", "admin", "manager"].includes(user?.role);
+}
 
 async function saveData(nextData = data) {
   await fs.mkdir(dataDir, { recursive: true });
@@ -676,15 +726,16 @@ async function handleApi(request, response, url) {
   }
 
   if (method === "GET" && url.pathname === "/api/employees") {
-    const user = requireUser(request, response, ["admin", "manager"]);
+    const user = requireUser(request, response, ["super_admin", "admin", "manager"]);
     if (!user) return;
     return json(response, 200, { employees: data.users.map(publicUser) });
   }
 
   if (method === "GET" && url.pathname === "/api/attendance") {
-    const user = requireUser(request, response, ["admin", "employee"]);
+    const user = requireUser(request, response, ["super_admin", "admin", "employee"]);
     if (!user) return;
-    const isAdmin = user.role === "admin";
+    const isAdmin = isAdminUser(user);
+    const isSuper = isSuperAdmin(user);
     let records = isAdmin
       ? data.attendance
       : data.attendance.filter((record) => {
@@ -738,15 +789,15 @@ async function handleApi(request, response, url) {
       });
     return json(response, 200, {
       records,
-      devices: isAdmin ? data.attendanceDevices : [],
+      devices: isSuper ? data.attendanceDevices : [],
       lastSync: data.settings.attendanceLastSync,
-      mappings: isAdmin ? data.attendanceMappings : {},
-      punchCodes: isAdmin ? punchCodes : [],
+      mappings: isSuper ? data.attendanceMappings : {},
+      punchCodes: isSuper ? punchCodes : [],
     });
   }
 
   if (method === "GET" && url.pathname === "/api/attendance/device-setup") {
-    const admin = requireUser(request, response, ["admin"]);
+    const admin = requireUser(request, response, ["super_admin"]);
     if (!admin) return;
     return json(response, 200, {
       serverHost: getLanAddress(),
@@ -759,7 +810,7 @@ async function handleApi(request, response, url) {
   }
 
   if (method === "POST" && url.pathname === "/api/attendance/rematch") {
-    const admin = requireUser(request, response, ["admin"]);
+    const admin = requireUser(request, response, ["super_admin"]);
     if (!admin) return;
     let matched = 0;
     for (const record of data.attendance) {
@@ -775,12 +826,12 @@ async function handleApi(request, response, url) {
   }
 
   if (method === "POST" && url.pathname === "/api/attendance/mappings") {
-    const admin = requireUser(request, response, ["admin"]);
+    const admin = requireUser(request, response, ["super_admin"]);
     if (!admin) return;
     const body = await readBody(request);
     const punchCode = String(body.punchCode || "").trim().toUpperCase();
     const employee = data.users.find(
-      (item) => item.active && item.id === body.userId && item.role !== "admin",
+      (item) => item.active && item.id === body.userId && !isAdminUser(item),
     );
     if (!punchCode || !employee) {
       return json(response, 400, { error: "Select a valid punch code and employee." });
@@ -804,7 +855,7 @@ async function handleApi(request, response, url) {
 
   const attendanceMatch = url.pathname.match(/^\/api\/attendance\/([^/]+)$/);
   if (attendanceMatch && method === "DELETE") {
-    const admin = requireUser(request, response, ["admin"]);
+    const admin = requireUser(request, response, ["super_admin"]);
     if (!admin) return;
     const index = data.attendance.findIndex((record) => record.id === attendanceMatch[1]);
     if (index === -1) return json(response, 404, { error: "Attendance punch not found." });
@@ -815,7 +866,7 @@ async function handleApi(request, response, url) {
 
   const attendanceDeviceMatch = url.pathname.match(/^\/api\/attendance-devices\/([^/]+)$/);
   if (attendanceDeviceMatch && method === "DELETE") {
-    const admin = requireUser(request, response, ["admin"]);
+    const admin = requireUser(request, response, ["super_admin"]);
     if (!admin) return;
     const index = data.attendanceDevices.findIndex(
       (device) => device.id === attendanceDeviceMatch[1],
@@ -827,7 +878,7 @@ async function handleApi(request, response, url) {
   }
 
   if (method === "POST" && url.pathname === "/api/employees") {
-    const admin = requireUser(request, response, ["admin"]);
+    const admin = requireUser(request, response, ["super_admin", "admin"]);
     if (!admin) return;
     const body = await readBody(request);
     const employeeId = String(body.employeeId || "").trim().toUpperCase();
@@ -845,7 +896,12 @@ async function handleApi(request, response, url) {
       email,
       department: String(body.department || "Other").trim(),
       manager: String(body.manager || "").trim(),
-      role: ["employee", "manager"].includes(body.role) ? body.role : "employee",
+      role:
+        isSuperAdmin(admin) && ["employee", "manager", "admin"].includes(body.role)
+          ? body.role
+          : ["employee", "manager"].includes(body.role)
+            ? body.role
+            : "employee",
       active: true,
       profileImage: "",
       passwordHash: hashSecret(body.password),
@@ -858,10 +914,13 @@ async function handleApi(request, response, url) {
 
   const employeeMatch = url.pathname.match(/^\/api\/employees\/([^/]+)$/);
   if (employeeMatch && method === "PATCH") {
-    const admin = requireUser(request, response, ["admin"]);
+    const admin = requireUser(request, response, ["super_admin", "admin"]);
     if (!admin) return;
     const employee = data.users.find((user) => user.id === employeeMatch[1]);
     if (!employee) return json(response, 404, { error: "Employee not found." });
+    if (!isSuperAdmin(admin) && isAdminUser(employee)) {
+      return json(response, 403, { error: "Only the super admin can manage administrator accounts." });
+    }
     const body = await readBody(request);
     if (body.employeeId !== undefined) {
       const employeeId = String(body.employeeId).trim().toUpperCase();
@@ -882,8 +941,18 @@ async function handleApi(request, response, url) {
     for (const field of ["name", "department", "manager"]) {
       if (body[field] !== undefined) employee[field] = String(body[field]).trim();
     }
-    if (body.role && ["employee", "manager"].includes(body.role) && employee.role !== "admin") {
+    if (
+      body.role &&
+      (
+        (isSuperAdmin(admin) && ["employee", "manager", "admin"].includes(body.role)) ||
+        ["employee", "manager"].includes(body.role)
+      ) &&
+      !isAdminUser(employee)
+    ) {
       employee.role = body.role;
+    }
+    if (body.role === "admin" && isSuperAdmin(admin) && employee.role !== "super_admin") {
+      employee.role = "admin";
     }
     if (typeof body.active === "boolean" && employee.id !== admin.id) employee.active = body.active;
     if (body.password) employee.passwordHash = hashSecret(body.password);
@@ -892,12 +961,15 @@ async function handleApi(request, response, url) {
   }
 
   if (employeeMatch && method === "DELETE") {
-    const admin = requireUser(request, response, ["admin"]);
+    const admin = requireUser(request, response, ["super_admin", "admin"]);
     if (!admin) return;
     const index = data.users.findIndex((user) => user.id === employeeMatch[1]);
     if (index === -1) return json(response, 404, { error: "Employee not found." });
     const employee = data.users[index];
-    if (employee.role === "admin" || employee.id === admin.id) {
+    if (!isSuperAdmin(admin) && isAdminUser(employee)) {
+      return json(response, 403, { error: "Only the super admin can manage administrator accounts." });
+    }
+    if (isAdminUser(employee) || employee.id === admin.id) {
       return json(response, 400, { error: "The administrator account cannot be deleted." });
     }
     if (employee.active) {
@@ -921,7 +993,7 @@ async function handleApi(request, response, url) {
   if (method === "GET" && url.pathname === "/api/entries") {
     const user = requireUser(request, response);
     if (!user) return;
-    const allAccess = ["admin", "manager"].includes(user.role);
+    const allAccess = hasManagerAccess(user);
     let entries = allAccess ? data.entries : data.entries.filter((entry) => entry.userId === user.id);
     const employeeId = url.searchParams.get("employeeId");
     const status = url.searchParams.get("status");
@@ -982,7 +1054,7 @@ async function handleApi(request, response, url) {
     const entry = data.entries.find((item) => item.id === entryMatch[1]);
     if (!entry) return json(response, 404, { error: "Timesheet entry not found." });
     const body = await readBody(request);
-    const isApprover = user.role === "admin";
+    const isApprover = isAdminUser(user);
 
     if (body.approvalStatus !== undefined) {
       if (!isApprover) return json(response, 403, { error: "Only admins can approve entries." });
@@ -1026,7 +1098,7 @@ async function handleApi(request, response, url) {
     const index = data.entries.findIndex((item) => item.id === entryMatch[1]);
     if (index === -1) return json(response, 404, { error: "Timesheet entry not found." });
     const entry = data.entries[index];
-    if (entry.userId !== user.id || entry.approvalStatus === "Approved") {
+    if (!isSuperAdmin(user) && (entry.userId !== user.id || entry.approvalStatus === "Approved")) {
       return json(response, 403, { error: "This entry cannot be deleted." });
     }
     data.entries.splice(index, 1);
@@ -1037,7 +1109,7 @@ async function handleApi(request, response, url) {
   if (method === "GET" && url.pathname === "/api/dashboard") {
     const user = requireUser(request, response);
     if (!user) return;
-    const visible = ["admin", "manager"].includes(user.role)
+    const visible = hasManagerAccess(user)
       ? data.entries
       : data.entries.filter((entry) => entry.userId === user.id);
     const now = new Date();
@@ -1050,7 +1122,7 @@ async function handleApi(request, response, url) {
         .filter((entry) => entry.billable)
         .reduce((sum, entry) => sum + entry.totalHours, 0),
       pending: visible.filter((entry) => entry.approvalStatus === "Submitted").length,
-      employees: data.users.filter((item) => item.active && item.role !== "admin").length,
+      employees: data.users.filter((item) => item.active && !isAdminUser(item)).length,
     };
     return json(response, 200, { totals });
   }
