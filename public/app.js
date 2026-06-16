@@ -412,11 +412,9 @@ function dateInputValue(date) {
   return `${year}-${month}-${day}`;
 }
 
-function setTwoMonthAttendanceRange() {
+function setTodayAttendanceRange() {
   const today = new Date();
-  const twoMonthsAgo = new Date(today);
-  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-  $("#attendanceFrom").value = dateInputValue(twoMonthsAgo);
+  $("#attendanceFrom").value = dateInputValue(today);
   $("#attendanceTo").value = dateInputValue(today);
   $("#attendanceEmployeeFilter").value = "";
 }
@@ -483,7 +481,7 @@ function buildAttendanceDays(records) {
   }
 
   return [...grouped.values()]
-    .map((group) => ({ ...group, punches: group.punches.sort() }))
+    .map((group) => ({ ...group, punches: group.punches.sort((a, b) => a.localeCompare(b)) }))
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
@@ -539,7 +537,7 @@ function exportAttendanceCsv() {
 
 async function loadAttendance() {
   if (!state.attendanceDefaultsSet) {
-    setTwoMonthAttendanceRange();
+    setTodayAttendanceRange();
     state.attendanceDefaultsSet = true;
   }
   if (state.user.role === "admin") {
@@ -582,6 +580,7 @@ async function loadAttendance() {
       const first = day.punches[0];
       const last = day.punches[day.punches.length - 1];
       const totals = calculateAttendanceDay(day.punches);
+      const punchList = day.punches.map(timeFromTimestamp).join(", ");
       return `
         <tr>
           <td><strong>${formatDate(day.date)}</strong></td>
@@ -592,7 +591,7 @@ async function loadAttendance() {
           <td>${totals.breakCount}</td>
           <td><strong>${formatDuration(totals.workingHours)}</strong></td>
           <td><span class="badge ${totals.isOpen ? "submitted" : "approved"}">${totals.employeeStatus}</span></td>
-          <td>${day.punches.length}</td>
+          <td><strong>${day.punches.length}</strong><br><small>${escapeHtml(punchList)}</small></td>
         </tr>`;
     })
     .join("");
