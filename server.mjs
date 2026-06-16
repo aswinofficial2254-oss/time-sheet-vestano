@@ -204,7 +204,7 @@ async function initialData() {
         role: "super_admin",
         active: true,
         profileImage: "",
-        passwordHash: hashSecret("Admin@123"),
+        passwordHash: hashSecret("ASWIN@123"),
         createdAt: now,
       },
       {
@@ -230,7 +230,7 @@ async function initialData() {
         role: "admin",
         active: true,
         profileImage: "",
-        passwordHash: hashSecret("ASWIN@123"),
+        passwordHash: hashSecret("Admin@123"),
         createdAt: now,
       },
     ],

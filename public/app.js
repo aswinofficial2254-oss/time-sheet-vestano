@@ -140,6 +140,8 @@ function showApp() {
       "hidden",
       role === "admin"
         ? !hasAdminAccess()
+        : role === "super-admin"
+          ? !isSuperAdmin()
         : role === "employee"
           ? state.user.role !== "employee"
           : !isManager(),
@@ -199,7 +201,7 @@ function startLiveRefresh(page) {
 
 function navigate(page) {
   if (page === "approvals" && !isAdmin()) page = "dashboard";
-  if (page === "employees" && !hasAdminAccess()) page = "dashboard";
+  if (page === "employees" && !isSuperAdmin()) page = "dashboard";
   if (page === "profile" && state.user.role !== "employee") page = "dashboard";
   state.page = page;
   $$(".page").forEach((element) => element.classList.toggle("active", element.id === `${page}Page`));
