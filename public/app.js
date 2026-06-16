@@ -7,6 +7,8 @@ const state = {
   employees: [],
   attendance: [],
   attendanceDefaultsSet: false,
+  liveRefreshTimer: null,
+  liveRefreshInProgress: false,
   pendingProfileImage: undefined,
   page: "dashboard",
 };
@@ -145,6 +147,31 @@ function renderSidebarAvatar() {
     : initials(state.user.name);
 }
 
+function stopLiveRefresh() {
+  if (state.liveRefreshTimer) clearInterval(state.liveRefreshTimer);
+  state.liveRefreshTimer = null;
+}
+
+function startLiveRefresh(page) {
+  stopLiveRefresh();
+  const shouldRefresh =
+    page === "attendance" || (page === "dashboard" && state.user?.role === "employee");
+  if (!shouldRefresh) return;
+
+  state.liveRefreshTimer = setInterval(async () => {
+    if (!state.user || state.page !== page || state.liveRefreshInProgress) return;
+    state.liveRefreshInProgress = true;
+    try {
+      if (page === "attendance") await loadAttendance();
+      if (page === "dashboard" && state.user.role === "employee") await loadDashboard();
+    } catch (error) {
+      console.warn("Live attendance refresh failed", error);
+    } finally {
+      state.liveRefreshInProgress = false;
+    }
+  }, 15000);
+}
+
 function navigate(page) {
   if (page === "approvals" && !isAdmin()) page = "dashboard";
   if (page === "employees" && state.user.role !== "admin") page = "dashboard";
@@ -169,6 +196,7 @@ function navigate(page) {
   if (page === "attendance") loadAttendance();
   if (page === "approvals") loadApprovals();
   if (page === "employees") loadEmployees();
+  startLiveRefresh(page);
 }
 
 function renderProfileImage() {
@@ -925,6 +953,7 @@ document.addEventListener("click", async (event) => {
   }
   if (target.id === "menuButton") $(".sidebar").classList.toggle("open");
   if (target.id === "logoutButton") {
+    stopLiveRefresh();
     await api("/api/logout", { method: "POST" });
     showLogin();
   }
