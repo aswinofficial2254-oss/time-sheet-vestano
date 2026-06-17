@@ -363,10 +363,8 @@ function renderEmployeeAttendance(records) {
 
   $("#todayAttendanceStatus").textContent = !todayRecord
     ? "No punch today"
-    : todayTotals.isOpen
-      ? "Checked in"
-      : "Checked out";
-  $("#todayAttendanceStatus").className = `badge ${todayRecord ? (todayTotals.isOpen ? "submitted" : "approved") : ""}`;
+    : todayTotals.employeeStatus;
+  $("#todayAttendanceStatus").className = `badge ${todayRecord ? todayTotals.employeeStatusClass : ""}`;
 
   const summary = [
     ["Check in", first ? timeFromTimestamp(first) : "—"],
@@ -399,7 +397,7 @@ function renderEmployeeAttendance(records) {
           <td>${totals.breakHours ? formatDuration(totals.breakHours) : "—"}</td>
           <td>${totals.breakCount}</td>
           <td>${liveNetWorkingMarkup(day.punches)}</td>
-          <td><span class="badge ${totals.isOpen ? "submitted" : "approved"}">${totals.employeeStatus}</span></td>
+          <td><span class="badge ${totals.employeeStatusClass}">${totals.employeeStatus}</span></td>
         </tr>`;
     })
     .join("");
@@ -600,6 +598,16 @@ function formatDuration(hours) {
   return `${wholeHours}h ${String(minutes).padStart(2, "0")}m`;
 }
 
+function attendanceStatusMeta(totals) {
+  if (totals.isOpen) {
+    return { label: "Inside / Working", badgeClass: "submitted" };
+  }
+  if (totals.workingHours < REQUIRED_NET_WORKING_HOURS) {
+    return { label: "Short hours", badgeClass: "rejected" };
+  }
+  return { label: "Left", badgeClass: "approved" };
+}
+
 function calculateAttendanceDay(punches, now = new Date()) {
   let workingHours = 0;
   let breakHours = 0;
@@ -629,12 +637,17 @@ function calculateAttendanceDay(punches, now = new Date()) {
       windowEnd,
     );
   }
+  const status = attendanceStatusMeta({
+    workingHours,
+    isOpen: punches.length % 2 === 1,
+  });
   return {
     workingHours,
     breakHours,
     breakCount: Math.floor((punches.length - 1) / 2),
     isOpen: punches.length % 2 === 1,
-    employeeStatus: punches.length % 2 === 1 ? "Inside / Working" : "Left",
+    employeeStatus: status.label,
+    employeeStatusClass: status.badgeClass,
   };
 }
 
@@ -644,11 +657,17 @@ function livePunchesAttribute(punches) {
 
 function liveNetWorkingMarkup(punches) {
   const totals = calculateAttendanceDay(punches);
+  const shortHoursClass = !totals.isOpen && totals.workingHours < REQUIRED_NET_WORKING_HOURS
+    ? " attendance-short-hours"
+    : "";
   const liveAttributes =
     totals.isOpen && isTodayTimestamp(punches.at(-1))
       ? ` class="live-duration" data-live-punches="${livePunchesAttribute(punches)}"`
       : "";
-  return `<strong${liveAttributes}>${formatDuration(totals.workingHours)}</strong>`;
+  if (liveAttributes) {
+    return `<strong${liveAttributes}>${formatDuration(totals.workingHours)}</strong>`;
+  }
+  return `<strong class="${shortHoursClass.trim()}">${formatDuration(totals.workingHours)}</strong>`;
 }
 
 function updateLiveAttendanceDurations() {
@@ -789,7 +808,7 @@ async function loadAttendance() {
           <td>${totals.breakHours ? formatDuration(totals.breakHours) : "—"}</td>
           <td>${totals.breakCount}</td>
           <td>${liveNetWorkingMarkup(day.punches)}</td>
-          <td><span class="badge ${totals.isOpen ? "submitted" : "approved"}">${totals.employeeStatus}</span></td>
+          <td><span class="badge ${totals.employeeStatusClass}">${totals.employeeStatus}</span></td>
           <td><strong>${day.punches.length}</strong><br><small>${escapeHtml(punchList)}</small></td>
         </tr>`;
     })
@@ -1210,3 +1229,4 @@ async function boot() {
 }
 
 boot().catch((error) => showToast(error.message, "error"));
+

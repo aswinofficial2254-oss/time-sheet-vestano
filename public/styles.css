@@ -875,6 +875,10 @@ tbody tr:hover {
   background: var(--orange-light);
 }
 
+.attendance-short-hours {
+  color: var(--red);
+}
+
 .row-actions {
   display: flex;
   gap: 6px;
