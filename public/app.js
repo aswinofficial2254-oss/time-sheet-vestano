@@ -519,9 +519,36 @@ function attendanceDateFromTimestamp(timestamp) {
   return dateInputValue(parsed);
 }
 
+const OFFICE_START_HOUR = 9;
+const OFFICE_START_MINUTE = 25;
+const OFFICE_END_HOUR = 17;
+const OFFICE_END_MINUTE = 35;
+
+function parseTimestamp(timestamp) {
+  return new Date(String(timestamp).replace(" ", "T"));
+}
+
+function officeWindowForTimestamp(timestamp) {
+  const date = attendanceDateFromTimestamp(timestamp);
+  const windowStart = new Date(`${date}T${String(OFFICE_START_HOUR).padStart(2, "0")}:${String(
+    OFFICE_START_MINUTE,
+  ).padStart(2, "0")}:00`);
+  const windowEnd = new Date(`${date}T${String(OFFICE_END_HOUR).padStart(2, "0")}:${String(
+    OFFICE_END_MINUTE,
+  ).padStart(2, "0")}:00`);
+  return { windowStart, windowEnd };
+}
+
+function overlapHours(startTime, endTime, rangeStart, rangeEnd) {
+  const clippedStart = Math.max(startTime.getTime(), rangeStart.getTime());
+  const clippedEnd = Math.min(endTime.getTime(), rangeEnd.getTime());
+  if (clippedEnd <= clippedStart) return 0;
+  return (clippedEnd - clippedStart) / 3_600_000;
+}
+
 function hoursBetween(startTimestamp, endTimestamp) {
-  const start = new Date(startTimestamp.replace(" ", "T"));
-  const end = new Date(endTimestamp.replace(" ", "T"));
+  const start = parseTimestamp(startTimestamp);
+  const end = parseTimestamp(endTimestamp);
   const hours = (end - start) / 3_600_000;
   return Number.isFinite(hours) && hours >= 0 ? hours : 0;
 }
@@ -576,14 +603,31 @@ function formatDuration(hours) {
 function calculateAttendanceDay(punches, now = new Date()) {
   let workingHours = 0;
   let breakHours = 0;
+  const { windowStart, windowEnd } = officeWindowForTimestamp(punches[0] || timestampFromDate(now));
+
   for (let index = 0; index + 1 < punches.length; index += 2) {
-    workingHours += hoursBetween(punches[index], punches[index + 1]);
+    workingHours += overlapHours(
+      parseTimestamp(punches[index]),
+      parseTimestamp(punches[index + 1]),
+      windowStart,
+      windowEnd,
+    );
   }
   if (punches.length % 2 === 1 && isTodayTimestamp(punches.at(-1))) {
-    workingHours += hoursBetween(punches.at(-1), timestampFromDate(now));
+    workingHours += overlapHours(
+      parseTimestamp(punches.at(-1)),
+      now,
+      windowStart,
+      windowEnd,
+    );
   }
   for (let index = 1; index + 1 < punches.length; index += 2) {
-    breakHours += hoursBetween(punches[index], punches[index + 1]);
+    breakHours += overlapHours(
+      parseTimestamp(punches[index]),
+      parseTimestamp(punches[index + 1]),
+      windowStart,
+      windowEnd,
+    );
   }
   return {
     workingHours,
