@@ -598,11 +598,11 @@ function formatDuration(hours) {
   return `${wholeHours}h ${String(minutes).padStart(2, "0")}m`;
 }
 
-function attendanceStatusMeta(totals) {
+function attendanceStatusMeta(totals, windowEnd, now = new Date()) {
   if (totals.isOpen) {
     return { label: "Inside / Working", badgeClass: "submitted" };
   }
-  if (totals.workingHours < REQUIRED_NET_WORKING_HOURS) {
+  if (totals.workingHours < REQUIRED_NET_WORKING_HOURS && now >= windowEnd) {
     return { label: "Short hours", badgeClass: "rejected" };
   }
   return { label: "Left", badgeClass: "approved" };
@@ -640,7 +640,7 @@ function calculateAttendanceDay(punches, now = new Date()) {
   const status = attendanceStatusMeta({
     workingHours,
     isOpen: punches.length % 2 === 1,
-  });
+  }, windowEnd, now);
   return {
     workingHours,
     breakHours,
@@ -657,7 +657,7 @@ function livePunchesAttribute(punches) {
 
 function liveNetWorkingMarkup(punches) {
   const totals = calculateAttendanceDay(punches);
-  const shortHoursClass = !totals.isOpen && totals.workingHours < REQUIRED_NET_WORKING_HOURS
+  const shortHoursClass = totals.employeeStatusClass === "rejected"
     ? " attendance-short-hours"
     : "";
   const liveAttributes =
