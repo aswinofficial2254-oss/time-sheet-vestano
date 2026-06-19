@@ -799,11 +799,18 @@ async function handleApi(request, response, url) {
   if (method === "GET" && url.pathname === "/api/attendance/device-setup") {
     const admin = requireUser(request, response, ["super_admin"]);
     if (!admin) return;
+    let endpoint;
+    try {
+      endpoint = new URL(liveAttendanceForwardUrl);
+    } catch {
+      endpoint = null;
+    }
+    const cloudSetup = liveAttendanceForwardEnabled && endpoint && endpoint.protocol === "https:";
     return json(response, 200, {
-      serverHost: getLanAddress(),
-      protocol: "ADMS / iClock push",
-      endpoint: `http://${getLanAddress()}:${attendancePort}/iclock/cdata`,
-      port: attendancePort,
+      serverHost: cloudSetup ? endpoint.hostname : getLanAddress(),
+      protocol: cloudSetup ? `HTTPS ADMS ${endpoint.pathname}` : "ADMS / iClock push",
+      endpoint: cloudSetup ? endpoint.toString() : `http://${getLanAddress()}:${attendancePort}/iclock/cdata`,
+      port: cloudSetup ? 443 : attendancePort,
       employeeMapping: "Machine user code must equal the website Employee ID.",
       device: data.settings.attendanceDeviceConfig,
     });
@@ -1179,3 +1186,4 @@ if (attendanceServer) {
     console.log(`eSSL attendance receiver running on port ${attendancePort}`);
   });
 }
+
