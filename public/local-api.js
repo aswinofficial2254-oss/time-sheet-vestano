@@ -281,7 +281,13 @@ export async function localApi(path, options = {}) {
 
   if (entryMatch && method === "DELETE") {
     const index = data.entries.findIndex((entry) => entry.id === entryMatch[1]);
-    if (index === -1 || data.entries[index].userId !== user.id || data.entries[index].approvalStatus === "Approved") {
+    if (
+      index === -1 ||
+      (
+        user.role !== "super_admin" &&
+        (data.entries[index].userId !== user.id || data.entries[index].approvalStatus === "Approved")
+      )
+    ) {
       throw new Error("This entry cannot be deleted.");
     }
     data.entries.splice(index, 1);
@@ -394,3 +400,4 @@ export async function localApi(path, options = {}) {
 
   throw new Error("This action is not available.");
 }
+
