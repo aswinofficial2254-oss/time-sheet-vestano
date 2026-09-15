@@ -1,6 +1,5 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabase-config.js?v=1";
-import { localApi } from "./local-api.js?v=1";
 
 const configured =
   SUPABASE_URL.startsWith("https://") &&
@@ -38,6 +37,13 @@ function firstRow(data) {
 
 function mapProfile(profile) {
   if (!profile) return null;
+  const employeeId = String(profile.employee_id || "").trim().toUpperCase();
+  const isEmployee = profile.role === "employee";
+  const requestedShift = isEmployee
+    ? employeeId === "EMP13"
+      ? { start: "09:00", end: "17:00" }
+      : { start: "09:30", end: "17:30" }
+    : null;
   return {
     id: profile.id,
     employeeId: profile.employee_id,
@@ -45,6 +51,8 @@ function mapProfile(profile) {
     email: profile.email,
     department: profile.department,
     manager: profile.manager,
+    shiftStartTime: requestedShift?.start || String(profile.shift_start_time || "09:00").slice(0, 5),
+    shiftEndTime: requestedShift?.end || String(profile.shift_end_time || "17:30").slice(0, 5),
     role: profile.role,
     active: profile.active,
     profileImage: profile.profile_image || "",
@@ -181,11 +189,13 @@ async function invokeEmployee(action, body) {
 }
 
 export function useSupabaseApi() {
-  return location.hostname.endsWith("github.io");
+  return true;
 }
 
 export async function supabaseApi(path, options = {}) {
-  if (!configured) return localApi(path, options);
+  if (!configured) {
+    throw new Error("Supabase is not configured. Add the project URL and publishable key.");
+  }
   const client = requireClient();
   const method = options.method || "GET";
   const url = new URL(path, location.origin);

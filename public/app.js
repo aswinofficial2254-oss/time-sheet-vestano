@@ -1,4 +1,4 @@
-import { supabaseApi, useSupabaseApi } from "./supabase-api.js?v=2";
+import { supabaseApi, useSupabaseApi } from "./supabase-api.js?v=4";
 
 const state = {
   user: null,
@@ -16,8 +16,6 @@ const state = {
 };
 
 const REQUIRED_NET_WORKING_HOURS = 7;
-const WARNING_AFTER_HOUR = 17;
-const WARNING_AFTER_MINUTE = 35;
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -357,7 +355,7 @@ function renderEmployeeAttendance(records) {
   const recentDays = days.slice(0, 7);
   const today = new Date().toISOString().slice(0, 10);
   const todayRecord = days.find((day) => day.date === today);
-  const todayTotals = todayRecord ? calculateAttendanceDay(todayRecord.punches) : null;
+  const todayTotals = todayRecord ? calculateAttendanceDay(todayRecord.punches, new Date(), state.user) : null;
   const first = todayRecord?.punches[0];
   const last = todayRecord?.punches[todayRecord.punches.length - 1];
 
@@ -367,8 +365,8 @@ function renderEmployeeAttendance(records) {
   $("#todayAttendanceStatus").className = `badge ${todayRecord ? todayTotals.employeeStatusClass : ""}`;
 
   const summary = [
-    ["Check in", first ? timeFromTimestamp(first) : "—"],
-    ["Check out", todayRecord && !todayTotals.isOpen ? timeFromTimestamp(last) : "—"],
+    ["Check in", first ? countedAttendanceTime(first, state.user, "start") : "—"],
+    ["Check out", todayRecord && !todayTotals.isOpen ? countedAttendanceTime(last, state.user, "end") : "—"],
     ["Break time", todayTotals?.breakHours ? formatDuration(todayTotals.breakHours) : "—"],
     ["Break count", todayTotals ? todayTotals.breakCount : "—"],
     ["Net working", todayTotals ? formatDuration(todayTotals.workingHours) : "—"],
@@ -386,14 +384,14 @@ function renderEmployeeAttendance(records) {
   $("#employeeAttendanceEmpty").classList.toggle("hidden", recentDays.length > 0);
   $("#employeeAttendanceRows").innerHTML = recentDays
     .map((day) => {
-      const totals = calculateAttendanceDay(day.punches);
+      const totals = calculateAttendanceDay(day.punches, new Date(), state.user);
       const dayFirst = day.punches[0];
       const dayLast = day.punches[day.punches.length - 1];
       return `
         <tr>
           <td>${formatDate(day.date)}</td>
-          <td>${timeFromTimestamp(dayFirst)}</td>
-          <td>${totals.isOpen ? "Open" : timeFromTimestamp(dayLast)}</td>
+          <td>${countedAttendanceTime(dayFirst, state.user, "start")}</td>
+          <td>${totals.isOpen ? "Open" : countedAttendanceTime(dayLast, state.user, "end")}</td>
           <td>${totals.breakHours ? formatDuration(totals.breakHours) : "—"}</td>
           <td>${totals.breakCount}</td>
           <td>${liveNetWorkingMarkup(day.punches)}</td>
@@ -517,23 +515,19 @@ function attendanceDateFromTimestamp(timestamp) {
   return dateInputValue(parsed);
 }
 
-const OFFICE_START_HOUR = 9;
-const OFFICE_START_MINUTE = 25;
-const OFFICE_END_HOUR = 17;
-const OFFICE_END_MINUTE = 35;
+const ATTENDANCE_GRACE_MINUTES = 5;
+const DEFAULT_EMPLOYEE_SHIFT = { shiftStartTime: "09:30", shiftEndTime: "17:30" };
 
 function parseTimestamp(timestamp) {
   return new Date(String(timestamp).replace(" ", "T"));
 }
 
-function officeWindowForTimestamp(timestamp) {
+function attendanceWindowForTimestamp(timestamp, shift = DEFAULT_EMPLOYEE_SHIFT) {
   const date = attendanceDateFromTimestamp(timestamp);
-  const windowStart = new Date(`${date}T${String(OFFICE_START_HOUR).padStart(2, "0")}:${String(
-    OFFICE_START_MINUTE,
-  ).padStart(2, "0")}:00`);
-  const windowEnd = new Date(`${date}T${String(OFFICE_END_HOUR).padStart(2, "0")}:${String(
-    OFFICE_END_MINUTE,
-  ).padStart(2, "0")}:00`);
+  const windowStart = new Date(`${date}T${String(shift.shiftStartTime || "09:30").slice(0, 5)}:00`);
+  const windowEnd = new Date(`${date}T${String(shift.shiftEndTime || "17:30").slice(0, 5)}:00`);
+  windowStart.setMinutes(windowStart.getMinutes() - ATTENDANCE_GRACE_MINUTES);
+  windowEnd.setMinutes(windowEnd.getMinutes() + ATTENDANCE_GRACE_MINUTES);
   return { windowStart, windowEnd };
 }
 
@@ -551,15 +545,29 @@ function hoursBetween(startTimestamp, endTimestamp) {
   return Number.isFinite(hours) && hours >= 0 ? hours : 0;
 }
 
-function isEmployeeWarningTime(now = new Date()) {
-  return now.getHours() > WARNING_AFTER_HOUR ||
-    (now.getHours() === WARNING_AFTER_HOUR && now.getMinutes() >= WARNING_AFTER_MINUTE);
+function clockTime(date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function countedAttendanceTime(timestamp, shift, boundary) {
+  const punch = parseTimestamp(timestamp);
+  if (Number.isNaN(punch.getTime())) return timeFromTimestamp(timestamp);
+  const { windowStart, windowEnd } = attendanceWindowForTimestamp(timestamp, shift);
+  const counted = boundary === "start"
+    ? new Date(Math.max(punch.getTime(), windowStart.getTime()))
+    : new Date(Math.min(punch.getTime(), windowEnd.getTime()));
+  return clockTime(counted);
+}
+
+function isEmployeeWarningTime(now = new Date(), shift = state.user || DEFAULT_EMPLOYEE_SHIFT) {
+  const { windowEnd } = attendanceWindowForTimestamp(timestampFromDate(now), shift);
+  return now >= windowEnd;
 }
 
 function updateEmployeeHoursWarning(records = state.employeeAttendanceRecords, now = new Date()) {
   const warning = $("#employeeHoursWarning");
   if (!warning) return;
-  if (!state.user || state.user.role !== "employee" || !isEmployeeWarningTime(now)) {
+  if (!state.user || state.user.role !== "employee" || !isEmployeeWarningTime(now, state.user)) {
     warning.classList.add("hidden");
     warning.innerHTML = "";
     return;
@@ -567,7 +575,10 @@ function updateEmployeeHoursWarning(records = state.employeeAttendanceRecords, n
 
   const today = dateInputValue(now);
   const todayRecord = groupAttendanceRecords(records).find((day) => day.date === today);
-  const workingHours = todayRecord ? calculateAttendanceDay(todayRecord.punches, now).workingHours : 0;
+  const workingHours = todayRecord
+    ? calculateAttendanceDay(todayRecord.punches, now, state.user).workingHours
+    : 0;
+  const { windowEnd } = attendanceWindowForTimestamp(timestampFromDate(now), state.user);
   if (workingHours >= REQUIRED_NET_WORKING_HOURS) {
     warning.classList.add("hidden");
     warning.innerHTML = "";
@@ -576,7 +587,7 @@ function updateEmployeeHoursWarning(records = state.employeeAttendanceRecords, n
 
   warning.innerHTML = `
     <strong>Working hours warning</strong>
-    <span>Your net working time today is ${formatDuration(workingHours)}. Minimum required is ${formatDuration(REQUIRED_NET_WORKING_HOURS)} after 5:35 PM.</span>
+    <span>Your net working time today is ${formatDuration(workingHours)}. Minimum required is ${formatDuration(REQUIRED_NET_WORKING_HOURS)} after ${clockTime(windowEnd)}.</span>
   `;
   warning.classList.remove("hidden");
 }
@@ -608,10 +619,13 @@ function attendanceStatusMeta(totals, windowEnd, now = new Date()) {
   return { label: "Left", badgeClass: "approved" };
 }
 
-function calculateAttendanceDay(punches, now = new Date()) {
+function calculateAttendanceDay(punches, now = new Date(), shift = state.user || DEFAULT_EMPLOYEE_SHIFT) {
   let workingHours = 0;
   let breakHours = 0;
-  const { windowStart, windowEnd } = officeWindowForTimestamp(punches[0] || timestampFromDate(now));
+  const { windowStart, windowEnd } = attendanceWindowForTimestamp(
+    punches[0] || timestampFromDate(now),
+    shift,
+  );
 
   for (let index = 0; index + 1 < punches.length; index += 2) {
     workingHours += overlapHours(
@@ -655,14 +669,18 @@ function livePunchesAttribute(punches) {
   return escapeHtml(encodeURIComponent(JSON.stringify(punches)));
 }
 
-function liveNetWorkingMarkup(punches) {
-  const totals = calculateAttendanceDay(punches);
+function liveNetWorkingMarkup(punches, shift = state.user || DEFAULT_EMPLOYEE_SHIFT) {
+  const totals = calculateAttendanceDay(punches, new Date(), shift);
   const shortHoursClass = totals.employeeStatusClass === "rejected"
     ? " attendance-short-hours"
     : "";
   const liveAttributes =
     totals.isOpen && isTodayTimestamp(punches.at(-1))
-      ? ` class="live-duration" data-live-punches="${livePunchesAttribute(punches)}"`
+      ? ` class="live-duration" data-live-punches="${livePunchesAttribute(punches)}" data-live-shift-start="${escapeHtml(
+          String(shift?.shiftStartTime || DEFAULT_EMPLOYEE_SHIFT.shiftStartTime),
+        )}" data-live-shift-end="${escapeHtml(
+          String(shift?.shiftEndTime || DEFAULT_EMPLOYEE_SHIFT.shiftEndTime),
+        )}"`
       : "";
   if (liveAttributes) {
     return `<strong${liveAttributes}>${formatDuration(totals.workingHours)}</strong>`;
@@ -674,7 +692,11 @@ function updateLiveAttendanceDurations() {
   $$("[data-live-punches]").forEach((element) => {
     try {
       const punches = JSON.parse(decodeURIComponent(element.dataset.livePunches));
-      element.textContent = formatDuration(calculateAttendanceDay(punches).workingHours);
+      const shift = {
+        shiftStartTime: element.dataset.liveShiftStart,
+        shiftEndTime: element.dataset.liveShiftEnd,
+      };
+      element.textContent = formatDuration(calculateAttendanceDay(punches, new Date(), shift).workingHours);
     } catch {
       element.removeAttribute("data-live-punches");
     }
@@ -689,6 +711,7 @@ function buildAttendanceDays(records) {
     const key = `${record.userId || record.punchCode}|${date}`;
     const group = grouped.get(key) || {
       date,
+      userId: record.userId,
       employeeName: record.employeeName,
       employeeId: record.employeeId || record.punchCode,
       punches: [],
@@ -701,6 +724,15 @@ function buildAttendanceDays(records) {
   return [...grouped.values()]
     .map((group) => ({ ...group, punches: group.punches.sort((a, b) => a.localeCompare(b)) }))
     .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function attendanceShiftForDay(day) {
+  const employee = state.employees.find(
+    (item) =>
+      item.id === day.userId ||
+      String(item.employeeId).toUpperCase() === String(day.employeeId).toUpperCase(),
+  );
+  return employee || DEFAULT_EMPLOYEE_SHIFT;
 }
 
 function csvCell(value) {
@@ -727,13 +759,14 @@ function exportAttendanceCsv() {
     "Punch Count",
   ];
   const rows = days.map((day) => {
-    const totals = calculateAttendanceDay(day.punches);
+    const shift = attendanceShiftForDay(day);
+    const totals = calculateAttendanceDay(day.punches, new Date(), shift);
     return [
       day.date,
       day.employeeName,
       day.employeeId,
-      timeFromTimestamp(day.punches[0]),
-      totals.isOpen ? "Open" : timeFromTimestamp(day.punches.at(-1)),
+      countedAttendanceTime(day.punches[0], shift, "start"),
+      totals.isOpen ? "Open" : countedAttendanceTime(day.punches.at(-1), shift, "end"),
       formatDuration(totals.breakHours),
       totals.breakCount,
       formatDuration(totals.workingHours),
@@ -797,17 +830,18 @@ async function loadAttendance() {
     .map((day) => {
       const first = day.punches[0];
       const last = day.punches[day.punches.length - 1];
-      const totals = calculateAttendanceDay(day.punches);
+      const shift = attendanceShiftForDay(day);
+      const totals = calculateAttendanceDay(day.punches, new Date(), shift);
       const punchList = day.punches.map(timeFromTimestamp).join(", ");
       return `
         <tr>
           <td><strong>${formatDate(day.date)}</strong></td>
           ${adminView ? `<td class="employee-cell"><strong>${escapeHtml(day.employeeName)}</strong><span>${escapeHtml(day.employeeId)}${day.matched ? "" : " · Needs mapping"}</span></td>` : ""}
-          <td>${timeFromTimestamp(first)}</td>
-          <td>${totals.isOpen ? '<span class="badge submitted">Open</span>' : timeFromTimestamp(last)}</td>
+          <td>${countedAttendanceTime(first, shift, "start")}</td>
+          <td>${totals.isOpen ? '<span class="badge submitted">Open</span>' : countedAttendanceTime(last, shift, "end")}</td>
           <td>${totals.breakHours ? formatDuration(totals.breakHours) : "—"}</td>
           <td>${totals.breakCount}</td>
-          <td>${liveNetWorkingMarkup(day.punches)}</td>
+          <td>${liveNetWorkingMarkup(day.punches, attendanceShiftForDay(day))}</td>
           <td><span class="badge ${totals.employeeStatusClass}">${totals.employeeStatus}</span></td>
           <td><strong>${day.punches.length}</strong><br><small>${escapeHtml(punchList)}</small></td>
         </tr>`;
@@ -873,6 +907,7 @@ async function loadEmployees() {
           <td>${employee.employeeId}</td>
           <td>${escapeHtml(employee.department)}</td>
           <td>${escapeHtml(employee.manager || "—")}</td>
+          <td>${escapeHtml(employee.shiftStartTime || "09:00")}–${escapeHtml(employee.shiftEndTime || "17:30")}</td>
           <td><span class="badge">${formatRoleLabel(employee.role)}</span></td>
           <td>
             <button
@@ -910,8 +945,8 @@ function openEntry(entry = null) {
   entryForm.elements.category.value = entry?.category || "Project Work";
   entryForm.elements.project.value = entry?.project || "";
   entryForm.elements.details.value = entry?.details || "";
-  entryForm.elements.startTime.value = entry?.startTime || "09:00";
-  entryForm.elements.endTime.value = entry?.endTime || "17:30";
+  entryForm.elements.startTime.value = entry?.startTime || state.user?.shiftStartTime || "09:00";
+  entryForm.elements.endTime.value = entry?.endTime || state.user?.shiftEndTime || "17:30";
   entryForm.elements.breakHours.value = entry?.breakHours ?? 0.5;
   entryForm.elements.workStatus.value = entry?.workStatus || "Completed";
   entryForm.elements.billable.checked = entry?.billable || false;
@@ -939,6 +974,8 @@ function openEmployeeEdit(employee) {
   editEmployeeForm.elements.email.value = employee.email;
   editEmployeeForm.elements.department.value = employee.department || "Other";
   editEmployeeForm.elements.manager.value = employee.manager || "";
+  editEmployeeForm.elements.shiftStartTime.value = employee.shiftStartTime || "09:00";
+  editEmployeeForm.elements.shiftEndTime.value = employee.shiftEndTime || "17:30";
   syncRoleOptions(editEmployeeForm.elements.role, employee.role);
   editEmployeeForm.elements.role.disabled =
     employee.role === "super_admin" || (!isSuperAdmin() && employee.role === "admin");
@@ -1229,4 +1266,3 @@ async function boot() {
 }
 
 boot().catch((error) => showToast(error.message, "error"));
-

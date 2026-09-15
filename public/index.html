@@ -414,6 +414,7 @@
                       <th>ID</th>
                       <th>Department</th>
                       <th>Manager</th>
+                      <th>Shift</th>
                       <th>Role</th>
                       <th>Access</th>
                       <th></th>
@@ -551,6 +552,14 @@
             <input name="manager" placeholder="Manager name" />
           </label>
           <label>
+            Shift start time *
+            <input name="shiftStartTime" type="time" value="09:00" required />
+          </label>
+          <label>
+            Shift end time *
+            <input name="shiftEndTime" type="time" value="17:30" required />
+          </label>
+          <label>
             Temporary password / PIN *
             <span class="password-field">
               <input name="password" type="password" minlength="4" required />
@@ -612,6 +621,14 @@
           <label>
             Manager
             <input name="manager" />
+          </label>
+          <label>
+            Shift start time *
+            <input name="shiftStartTime" type="time" required />
+          </label>
+          <label>
+            Shift end time *
+            <input name="shiftEndTime" type="time" required />
           </label>
           <label>
             New password / PIN
@@ -687,6 +704,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./app.js?v=20"></script>
+    <script type="module" src="./app.js?v=26"></script>
   </body>
 </html>
