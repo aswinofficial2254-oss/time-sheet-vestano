@@ -183,7 +183,19 @@ async function invokeEmployee(action, body) {
   const { data, error } = await requireClient().functions.invoke("admin-users", {
     body: { action, ...body },
   });
-  throwIfError(error);
+  if (error) {
+    let message = error.message || "Employee request failed.";
+    const response = error.context;
+    if (response && typeof response.clone === "function") {
+      try {
+        const payload = await response.clone().json();
+        message = payload?.error || message;
+      } catch {
+        // Keep the Supabase fallback message when the response has no JSON body.
+      }
+    }
+    throw new Error(message);
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 }

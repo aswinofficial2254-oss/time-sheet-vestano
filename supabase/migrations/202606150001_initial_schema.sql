@@ -26,6 +26,8 @@ create table if not exists public.profiles (
   email citext not null unique,
   department text not null default 'Other',
   manager text not null default '',
+  shift_start_time time not null default '09:00',
+  shift_end_time time not null default '17:30',
   role text not null default 'employee' check (role in ('super_admin', 'admin', 'manager', 'employee')),
   active boolean not null default true,
   profile_image text not null default '',

@@ -21,6 +21,20 @@ function canSetRole(callerRole: string, role: string) {
   return ["employee", "manager"].includes(role);
 }
 
+function isValidShiftTime(value: unknown) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""));
+}
+
+function validateShift(startTime: unknown, endTime: unknown) {
+  const start = String(startTime || "");
+  const end = String(endTime || "");
+  if (!isValidShiftTime(start) || !isValidShiftTime(end)) {
+    return "Shift start and end times must use HH:MM format.";
+  }
+  if (start >= end) return "Shift end time must be after the start time.";
+  return "";
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -53,19 +67,27 @@ Deno.serve(async (request) => {
     if (action === "create") {
       const email = String(body.email || "").trim().toLowerCase();
       const password = String(body.password || "");
-      if (!email || password.length < 4 || !String(body.employeeId || "").trim()) {
-        return response(400, { error: "Employee ID, email, and password are required." });
+      const shiftStartTime = String(body.shiftStartTime || "").trim();
+      const shiftEndTime = String(body.shiftEndTime || "").trim();
+      const employeeId = String(body.employeeId || "").trim();
+      const name = String(body.name || "").trim();
+      if (!email || password.length < 4 || !employeeId || !name || !shiftStartTime || !shiftEndTime) {
+        return response(400, { error: "Employee ID, name, email, password, and shift times are required." });
       }
+      const shiftError = validateShift(shiftStartTime, shiftEndTime);
+      if (shiftError) return response(400, { error: shiftError });
 
       const { data, error } = await adminClient.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
         user_metadata: {
-          employee_id: String(body.employeeId).trim(),
-          name: String(body.name || "").trim(),
+          employee_id: employeeId,
+          name,
           department: String(body.department || "Other"),
           manager: String(body.manager || "").trim(),
+          shift_start_time: shiftStartTime,
+          shift_end_time: shiftEndTime,
         },
       });
       if (error) throw error;
@@ -73,18 +95,26 @@ Deno.serve(async (request) => {
       const { data: profile, error: profileError } = await adminClient
         .from("profiles")
         .update({
-          employee_id: String(body.employeeId).trim(),
-          name: String(body.name || "").trim(),
+          employee_id: employeeId,
+          name,
           email,
           department: String(body.department || "Other"),
           manager: String(body.manager || "").trim(),
+          shift_start_time: shiftStartTime,
+          shift_end_time: shiftEndTime,
           role: canSetRole(caller.role, body.role) ? body.role : "employee",
           active: true,
         })
         .eq("id", data.user.id)
         .select()
         .single();
-      if (profileError) throw profileError;
+      if (profileError) {
+        const { error: cleanupError } = await adminClient.auth.admin.deleteUser(data.user.id);
+        if (cleanupError) {
+          console.error("Unable to roll back partially created employee:", cleanupError.message);
+        }
+        throw profileError;
+      }
       return response(201, { employee: profile });
     }
 
@@ -107,6 +137,8 @@ Deno.serve(async (request) => {
         ["email", "email"],
         ["department", "department"],
         ["manager", "manager"],
+        ["shiftStartTime", "shift_start_time"],
+        ["shiftEndTime", "shift_end_time"],
         ["active", "active"],
       ]) {
         if (body[source] !== undefined) updates[target] = body[source];
@@ -125,6 +157,19 @@ Deno.serve(async (request) => {
       if (currentProfile?.role === "admin" && caller.role !== "super_admin") {
         return response(403, { error: "Only the super admin can manage administrator accounts." });
       }
+
+      const { data: currentEmployee, error: currentEmployeeError } = await adminClient
+        .from("profiles")
+        .select("shift_start_time, shift_end_time")
+        .eq("id", userId)
+        .single();
+      if (currentEmployeeError) throw currentEmployeeError;
+      const shiftStartTime = String(body.shiftStartTime ?? currentEmployee.shift_start_time ?? "09:00").slice(0, 5);
+      const shiftEndTime = String(body.shiftEndTime ?? currentEmployee.shift_end_time ?? "17:30").slice(0, 5);
+      const shiftError = validateShift(shiftStartTime, shiftEndTime);
+      if (shiftError) return response(400, { error: shiftError });
+      updates.shift_start_time = shiftStartTime;
+      updates.shift_end_time = shiftEndTime;
 
       if (body.role !== undefined && canSetRole(caller.role, body.role)) {
         updates.role = body.role;
