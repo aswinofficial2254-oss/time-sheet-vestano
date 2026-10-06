@@ -1023,6 +1023,26 @@ entryForm.addEventListener("submit", async (event) => {
 employeeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const values = Object.fromEntries(new FormData(employeeForm));
+  values.employeeId = String(values.employeeId || "").trim().toUpperCase();
+  values.email = String(values.email || "").trim().toLowerCase();
+  if (
+    state.employees.some(
+      (employee) => String(employee.employeeId || "").trim().toUpperCase() === values.employeeId,
+    )
+  ) {
+    showToast("Employee ID already exists. Enter a unique Employee ID.", "error");
+    employeeForm.elements.employeeId.focus();
+    return;
+  }
+  if (
+    state.employees.some(
+      (employee) => String(employee.email || "").trim().toLowerCase() === values.email,
+    )
+  ) {
+    showToast("Email already exists. Enter a unique company email.", "error");
+    employeeForm.elements.email.focus();
+    return;
+  }
   try {
     await api("/api/employees", { method: "POST", body: JSON.stringify(values) });
     employeeDialog.close();

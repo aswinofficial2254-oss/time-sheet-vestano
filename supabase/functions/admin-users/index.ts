@@ -69,7 +69,7 @@ Deno.serve(async (request) => {
       const password = String(body.password || "");
       const shiftStartTime = String(body.shiftStartTime || "").trim();
       const shiftEndTime = String(body.shiftEndTime || "").trim();
-      const employeeId = String(body.employeeId || "").trim();
+      const employeeId = String(body.employeeId || "").trim().toUpperCase();
       const name = String(body.name || "").trim();
       if (!email || !employeeId || !name || !shiftStartTime || !shiftEndTime) {
         return response(400, { error: "Employee ID, name, email, password, and shift times are required." });
@@ -79,6 +79,19 @@ Deno.serve(async (request) => {
       }
       const shiftError = validateShift(shiftStartTime, shiftEndTime);
       if (shiftError) return response(400, { error: shiftError });
+
+      const [employeeIdResult, emailResult] = await Promise.all([
+        adminClient.from("profiles").select("id").eq("employee_id", employeeId).maybeSingle(),
+        adminClient.from("profiles").select("id").eq("email", email).maybeSingle(),
+      ]);
+      if (employeeIdResult.error) throw employeeIdResult.error;
+      if (emailResult.error) throw emailResult.error;
+      if (employeeIdResult.data) {
+        return response(409, { error: "Employee ID already exists. Enter a unique Employee ID." });
+      }
+      if (emailResult.data) {
+        return response(409, { error: "Email already exists. Enter a unique company email." });
+      }
 
       const { data, error } = await adminClient.auth.admin.createUser({
         email,
