@@ -71,8 +71,11 @@ Deno.serve(async (request) => {
       const shiftEndTime = String(body.shiftEndTime || "").trim();
       const employeeId = String(body.employeeId || "").trim();
       const name = String(body.name || "").trim();
-      if (!email || password.length < 4 || !employeeId || !name || !shiftStartTime || !shiftEndTime) {
+      if (!email || !employeeId || !name || !shiftStartTime || !shiftEndTime) {
         return response(400, { error: "Employee ID, name, email, password, and shift times are required." });
+      }
+      if (password.length < 6) {
+        return response(400, { error: "Password must have at least 6 characters." });
       }
       const shiftError = validateShift(shiftStartTime, shiftEndTime);
       if (shiftError) return response(400, { error: shiftError });
@@ -124,7 +127,13 @@ Deno.serve(async (request) => {
     if (action === "update") {
       const authUpdates: Record<string, string> = {};
       if (body.email) authUpdates.email = String(body.email).trim().toLowerCase();
-      if (body.password) authUpdates.password = String(body.password);
+      if (body.password) {
+        const password = String(body.password);
+        if (password.length < 6) {
+          return response(400, { error: "Password must have at least 6 characters." });
+        }
+        authUpdates.password = password;
+      }
       if (Object.keys(authUpdates).length) {
         const { error } = await adminClient.auth.admin.updateUserById(userId, authUpdates);
         if (error) throw error;
